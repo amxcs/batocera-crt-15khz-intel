@@ -1,0 +1,38 @@
+#!/bin/bash
+# 15kHz interlaced (480i) mode for the CRT on DP-3 via VGA->SCART.
+#
+# Requires the patched i915 installed by /boot/boot-custom.sh: stock i915
+# advertises Y-tiled scanout modifiers, and the display engine refuses Y-tiled
+# scanout in IF-ID interlace mode, so interlaced modesets failed with -EINVAL
+# ('xrandr: Configure crtc 0 failed').
+#
+# The mode is deliberately named after its real resolution: batocera-resolution
+# parses es.resolution (set to 676x464 in /boot/batocera-boot.conf) as WxH and
+# chokes on any non-numeric name.
+#
+# emulationstation-standalone backgrounds this script and then re-runs
+# 'xrandr --auto' while starting ES, which snaps the output back to 640x480,
+# so keep re-asserting the mode until it sticks for a few checks in a row.
+# Bounded on purpose: once ES is up we stop, so RetroArch's own CRT mode
+# switching per game is not fought over.
+LOG="/userdata/system/logs/crt-mode.log"
+MODE="676x464"
+
+echo "$(date): applying CRT mode $MODE" >> "$LOG"
+xrandr --query | grep -q "$MODE" || \
+    xrandr --newmode "$MODE" 13.850 676 700 759 867 464 480 486 533 -hsync -vsync interlace >>"$LOG" 2>&1
+xrandr --addmode DP-3 "$MODE" >>"$LOG" 2>&1
+xrandr --output DP-3 --mode "$MODE" >>"$LOG" 2>&1
+
+stable=0
+for i in $(seq 1 30); do
+    sleep 2
+    if xrandr --query | grep -q "$MODE.*\*"; then
+        stable=$((stable + 1))
+        [ "$stable" -ge 3 ] && { echo "$(date): $MODE stable" >> "$LOG"; break; }
+    else
+        stable=0
+        echo "$(date): mode drifted, re-applying (try $i)" >> "$LOG"
+        xrandr --output DP-3 --mode "$MODE" >>"$LOG" 2>&1
+    fi
+done
