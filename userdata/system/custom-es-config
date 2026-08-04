@@ -6,24 +6,29 @@
 # scanout in IF-ID interlace mode, so interlaced modesets failed with -EINVAL
 # ('xrandr: Configure crtc 0 failed').
 #
-# The mode is deliberately named after its real resolution: batocera-resolution
-# parses es.resolution (set to 676x464 in /boot/batocera-boot.conf) as WxH and
-# chokes on any non-numeric name.
+# Timings are switchres' generic_15 720x480 entry - the same family the
+# per-game SR-1_* modes are generated from - so the raster lands in the same
+# place in the menu as it does in game, and one TV geometry calibration covers
+# both. A hand-tuned modeline here would run at a slightly different
+# horizontal frequency and shift the picture between menu and game.
 #
-# emulationstation-standalone backgrounds this script and then re-runs
-# 'xrandr --auto' while starting ES, which snaps the output back to 640x480,
-# so keep re-asserting the mode until it sticks for a few checks in a row.
-# Bounded on purpose: once ES is up we stop, so RetroArch's own CRT mode
-# switching per game is not fought over.
+# The mode is deliberately named after its real resolution and carries no 'i':
+# batocera-resolution parses mode names as WxH and runs numeric tests on the
+# halves, so anything non-numeric throws '[: Illegal number'.
 LOG="/userdata/system/logs/crt-mode.log"
-MODE="676x464"
+MODE="720x480"
 
 echo "$(date): applying CRT mode $MODE" >> "$LOG"
 xrandr --query | grep -q "$MODE" || \
-    xrandr --newmode "$MODE" 13.850 676 700 759 867 464 480 486 533 -hsync -vsync interlace >>"$LOG" 2>&1
+    xrandr --newmode "$MODE" 14.657925 720 749 818 935 480 483 489 523 -hsync -vsync interlace >>"$LOG" 2>&1
 xrandr --addmode DP-3 "$MODE" >>"$LOG" 2>&1
 xrandr --output DP-3 --mode "$MODE" >>"$LOG" 2>&1
 
+# emulationstation-standalone backgrounds this script and then runs
+# 'xrandr --auto' while starting ES, which snaps the output back to a probed
+# mode, so keep re-asserting until it sticks for a few checks in a row.
+# Bounded on purpose: once ES is up we stop, so RetroArch's own per-game CRT
+# switching is not fought over.
 stable=0
 for i in $(seq 1 30); do
     sleep 2

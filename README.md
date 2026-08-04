@@ -136,7 +136,7 @@ To revert everything: delete `/boot/boot-custom.sh`.
 ### `/userdata/system/batocera.conf`
 
 ```ini
-global.videomode=676x464.59.94
+global.videomode=720x480.59.95
 global.retroarch.crt_switch_resolution=1
 global.retroarch.crt_switch_resolution_super=1280
 global.retroarch.crt_switch_hires_menu=false
@@ -167,12 +167,38 @@ also removes every 31kHz mode from the connector's list, so a stray
 
 ### Desktop / ES modeline
 
-Created by `custom-es-config`, tuned for one specific TV — **you will need your
-own timings**:
+Created by `custom-es-config` — switchres' `generic_15` 720x480 entry, i.e. the
+standard NTSC 480i frame:
 
 ```
-xrandr --newmode 676x464 13.850 676 700 759 867 464 480 486 533 -hsync -vsync interlace
+xrandr --newmode 720x480 14.657925 720 749 818 935 480 483 489 523 -hsync -vsync interlace
 ```
+
+Use a modeline from the **same switchres family** as the per-game modes, not a
+hand-tuned one. An earlier hand-made `676x464` modeline here ran at 15.97kHz
+against the games' 15.68kHz and covered 87.1% of the vertical total instead of
+91.8%, so the raster sat differently in the menu than in game and a single TV
+geometry calibration could not cover both:
+
+| mode | Hfreq | field | H active | V active |
+|---|---|---|---|---|
+| `676x464` hand-tuned | 15.97k | 59.94 | 78.0% | 87.1% |
+| `720x480` switchres | 15.68k | 59.95 | 77.0% | 91.8% |
+| `SR-1_1280x480i` in game | 15.69k | 60.00 | 76.9% | 91.8% |
+| `SR-1_1280x240` in game | 15.69k | 59.89 | 76.9% | 91.6% |
+
+Note the last two rows: 240p and 480i share the same geometry, because a 480i
+*field* and a 240p *frame* both sweep 240 active lines at 60Hz — interlace just
+offsets alternate fields by half a line. So switching resolutions mid-session
+does not move the picture, as long as every mode comes from one preset.
+
+### Overscan
+
+Shrinking the modeline to dodge overscan (which is what `676x464` was doing)
+throws away scanlines. Adjust the TV's geometry in its service menu instead and
+run the full 720x480. On the set used here the full frame turned out to be
+visible already, with a small black margin — no adjustment needed. See
+[`docs/`](docs/) for the service values that were recorded first.
 
 ---
 
@@ -190,8 +216,8 @@ xrandr --newmode 676x464 13.850 676 700 759 867 464 480 486 533 -hsync -vsync in
   `700x480_v2` throws `[: Illegal number` and the function bails out mid-way.
 
 - **`global.videomode` needs the refresh suffix.** `checkModeExists()` compares
-  against `batocera-resolution listModes` output, whose key is `676x464.59.94`.
-  A bare `676x464` fails validation and the mode is never set.
+  against `batocera-resolution listModes` output, whose key is `720x480.59.95`.
+  A bare `720x480` fails validation and the mode is never set.
 
 - **Don't use `es.resolution` in `/boot/batocera-boot.conf`.** That file is
   resynced from `batocera.conf` (it says so in its own header) and the value is
@@ -221,7 +247,7 @@ xrandr --newmode 676x464 13.850 676 700 759 867 464 480 486 533 -hsync -vsync in
 
 ```bash
 # what the CRTC is actually driving, incl. horizontal frequency
-DISPLAY=:0.0 xrandr --verbose --query | grep -A3 'SR-1_\|676x464'
+DISPLAY=:0.0 xrandr --verbose --query | grep -A3 'SR-1_\|720x480'
 
 # every mode change, in order - the quickest way to spot a stray 31kHz mode
 grep 'Allocate new frame buffer' /var/log/Xorg.0.log
@@ -235,7 +261,7 @@ A healthy PS1 game launch looks like this — no 640x480 anywhere:
 ```
 1649.987  Allocate new frame buffer 1280x240 stride
 1651.149  Allocate new frame buffer 1280x480 stride     <- SR-1_1280x480@60.00i
-1676.929  Allocate new frame buffer 676x464 stride      <- back to ES
+1676.929  Allocate new frame buffer 720x480 stride      <- back to ES
 ```
 
 ```
