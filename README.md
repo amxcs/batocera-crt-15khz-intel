@@ -119,6 +119,17 @@ cp userdata/system/scripts/crt-mode.sh   /userdata/system/scripts/crt-mode.sh
 chmod +x /userdata/system/custom-es-config /userdata/system/scripts/crt-mode.sh
 ```
 
+`tools/` holds the calibration helpers, none of which belong in
+`/userdata/system/scripts/` (see the gotcha about that directory below):
+
+| | |
+|---|---|
+| `try-mode.sh` | apply a modeline live, print its Hfreq/field rate, warn if it strays from NTSC |
+| `gen-overscan-ruler.py` | generate the labelled ruler used to measure overscan |
+| `gen-1px-frames.py` | finer 1px nested frames, once the ruler has got you close |
+| `show-test.sh` | display a still 1:1 on the CRT (mpv, nearest-neighbour, no dither) |
+| `es-frame.sh` | ES `--screensize`/`--screenoffset`; **read its header first**, it does not do what it sounds like |
+
 Keep a copy of the stock module first — if it ever fails to load you get no
 display (SSH still works):
 
@@ -136,10 +147,11 @@ To revert everything: delete `/boot/boot-custom.sh`.
 ### `/userdata/system/batocera.conf`
 
 ```ini
-global.videomode=720x480.59.95
+global.videomode=720x454.59.94
 global.retroarch.crt_switch_resolution=1
 global.retroarch.crt_switch_resolution_super=1280
 global.retroarch.crt_switch_hires_menu=false
+global.retroarch.menu_driver=rgui
 global.gfxbackend=vulkan
 mame.switchres=1
 fbneo.switchres=1
@@ -149,6 +161,10 @@ fbneo.switchres=1
 `emulatorlauncher` **skip `minTomaxResolution()` entirely** — that call runs
 `xrandr --auto` and lands the TV on 640x480 @31kHz for ~4 seconds at every game
 launch (RetroArch then inherits it as `video_fullscreen_x/y`).
+
+`crt_switch_hires_menu=false` matters too: with it on, RetroArch switches to a
+high-resolution (31kHz) mode for its own menu, which the TV cannot display.
+`menu_driver=rgui` keeps that menu readable at 240p.
 
 ### Kernel command line
 
@@ -165,40 +181,149 @@ splash, which otherwise runs at a 31kHz VESA fallback the TV cannot display. It
 also removes every 31kHz mode from the connector's list, so a stray
 `xrandr --auto` can no longer land on an undisplayable frequency.
 
-### Desktop / ES modeline
+### The desktop modeline: NTSC frequency, switchres proportions
 
-Created by `custom-es-config` — switchres' `generic_15` 720x480 entry, i.e. the
-standard NTSC 480i frame:
+Two constraints pull in opposite directions, and satisfying only one of them
+was the single biggest time sink here.
 
-```
-xrandr --newmode 720x480 14.657925 720 749 818 935 480 483 489 523 -hsync -vsync interlace
-```
+**Frequency must be NTSC.** switchres' own `720x480` (14.657925 MHz / htotal 935
+→ 15.676kHz) sits between PAL and NTSC. The TV accepted it and then took **~2
+minutes to lock at boot**. (ES's background music plays during that black
+screen, which is misleading — its HTTP port 1234 answering is the real
+readiness signal, and it answered at 29s.) At 15.734kHz the picture is instant.
 
-Use a modeline from the **same switchres family** as the per-game modes, not a
-hand-tuned one. An earlier hand-made `676x464` modeline here ran at 15.97kHz
-against the games' 15.68kHz and covered 87.1% of the vertical total instead of
-91.8%, so the raster sat differently in the menu than in game and a single TV
-geometry calibration could not cover both:
+**Geometry must match the game modes.** Games come out of switchres'
+`generic_15` preset, which uses an 8.0µs horizontal back porch and so only
+**76.9% H active**. Textbook NTSC (`13.5 720 739 801 858`, 4.7µs back porch) is
+**83.9%**. Run the menu on the textbook one and it is ~9% wider than every game
+and sits ~6% further left — one TV calibration cannot cover both.
+
+The fix is to keep 15.734kHz but stretch htotal until H active matches
+generic_15. The game mode is
+`26.108160 1280 1332 1455 1664 480 483 489 523 interlace`; scaled to 720 wide
+that gives htotal 936, and 15.734kHz then fixes the clock at 14.727.
 
 | mode | Hfreq | field | H active | V active |
 |---|---|---|---|---|
-| `676x464` hand-tuned | 15.97k | 59.94 | 78.0% | 87.1% |
-| `720x480` switchres | 15.68k | 59.95 | 77.0% | 91.8% |
-| `SR-1_1280x480i` in game | 15.69k | 60.00 | 76.9% | 91.8% |
-| `SR-1_1280x240` in game | 15.69k | 59.89 | 76.9% | 91.6% |
+| textbook NTSC `13.5/858` | 15.734k | 59.94 | 83.9% | 91.4% |
+| switchres `720x480` | 15.676k | 59.95 | 77.0% | 91.8% |
+| **this repo's `720x454`** | **15.734k** | **59.94** | **76.9%** | **86.5%** |
+| `SR-1_1280x480i` in game | 15.690k | 60.00 | 76.9% | 91.8% |
+| `SR-1_1280x240` in game | 15.660k | 60.00 | 77.0% | 92.0% |
 
-Note the last two rows: 240p and 480i share the same geometry, because a 480i
-*field* and a 240p *frame* both sweep 240 active lines at 60Hz — interlace just
-offsets alternate fields by half a line. So switching resolutions mid-session
-does not move the picture, as long as every mode comes from one preset.
+240p and 480i share their geometry, because a 480i *field* and a 240p *frame*
+both sweep 240 active lines at 60Hz — interlace just offsets alternate fields by
+half a line. So resolution changes mid-session do not move the picture, as long
+as every mode comes from one preset.
 
-### Overscan
+### Overscan: trim active lines, not the timing
 
-Shrinking the modeline to dodge overscan (which is what `676x464` was doing)
-throws away scanlines. Adjust the TV's geometry in its service menu instead and
-run the full 720x480. On the set used here the full frame turned out to be
-visible already, with a small black margin — no adjustment needed. See
-[`docs/`](docs/) for the service values that were recorded first.
+The last row of the ES mode above is 86.5%, not 91.4%, because 454 of the 480
+lines are active. That is the overscan trim, and it is free:
+
+> **Line pitch depends on Hfreq and vtotal only.** At 15.734kHz / 59.94Hz,
+> vtotal is pinned at 525 lines. Reducing the *active* count does not stretch
+> the remaining lines — the blanking absorbs the difference — so the picture
+> gets genuinely shorter while the field rate never moves.
+
+Rule when retrimming: **−2 active lines = +1 vback**, which keeps the vertical
+centre fixed. Trying to shrink the picture by growing vtotal instead is a dead
+end: 30 fewer visible lines would need vtotal 560, i.e. a 56.2Hz field rate.
+
+Measure how much to trim with [`tools/gen-overscan-ruler.py`](tools/) — it draws
+labelled markers every 5px in from each edge, so you read one number per edge
+instead of iterating on "a bit more". Everything on it is ≥3px thick, because a
+1px horizontal line lives in only one field of an interlaced mode and flickers
+at 30Hz. Display it 1:1 with [`tools/show-test.sh`](tools/) (mpv,
+nearest-neighbour, dithering off).
+
+The TV's own geometry controls are the other half of this; see [`docs/`](docs/)
+for the Sony Trinitron service values recorded here. Reducing **V-Size** is the
+only way to make *games* show more, since their modes use the full raster.
+
+### Do not use EmulationStation's `--screensize` for this
+
+It looks like the right tool and is not. `ScreenWidth`/`ScreenHeight` are only
+the logical resolution the theme lays out against, which ES then stretches back
+to the full window — so it creates no borders. `--screenoffset` does work but
+only translates, clipping the opposite edge. Captured proof: at
+`--screensize 720 415 --screenoffset 0 15` in a 720x480 mode, content started at
+row 15 and still ran to row 479, with the ES help bar pushed off screen.
+
+The stretching is useful in the *opposite* direction though — it is how ES can
+be driven on a 1280-wide super-resolution mode without the theme coming out
+squashed.
+
+---
+
+## Getting every emulator into the same frame
+
+libretro systems agree with each other for free, because RetroArch's switchres
+picks their mode. Standalone emulators do not: they simply inherit whatever mode
+is current, which is ES's deliberately-trimmed one, so they come out smaller
+than the games.
+
+`emulatorlauncher.py` calls `generator.getResolutionMode(config)`, whose base
+implementation is just `return config['videomode']` — so **`<system>.videomode`
+in `batocera.conf`** is the per-system lever. Three modes are defined in
+`boot-custom.sh`, all with **identical raster geometry** (76.9% H active,
+15.734kHz, same porches) and differing only in pixel count:
+
+| mode | modeline | for |
+|---|---|---|
+| `720x454` | `14.727 720 748 817 936 454 470 476 525` | ES menu (`global.videomode`) |
+| `720x480` | `14.727 720 748 817 936 480 483 489 525` | standalone emulators that stretch |
+| `640x480` | `13.091 640 665 726 832 480 483 489 525` | standalone emulators that force 4:3 |
+
+Because all three cover the same physical area of the tube, switching between
+them does not move or resize anything — only the sampling density changes.
+
+### The rule
+
+> **The mode decides the window's pixel shape. The emulator's own aspect setting
+> decides what it draws inside that window.**
+
+An emulator that fits 4:3 with square pixels will pillarbox in a 720x480 window
+(1.5:1) but fill a 640x480 one exactly. Worked examples:
+
+| system | emulator | settings | why |
+|---|---|---|---|
+| n64 | `mupen64plus` + glide64mk2 | `n64.videomode=640x480.59.94` | scales the N64 framebuffer by an integer factor, so SM64's 320x224 became 640x448 and left 40px black each side of a 720-wide window |
+| gamecube | `dolphin` | `gamecube.videomode=640x480.59.94`, `gamecube.dolphin_aspect_ratio=3` | mode fixed the ~57px side bars; 15px remained because Dolphin rendered 625x480 regardless of aspect mode (the game's VI active width, not aspect fitting — `dolphin_aspect_ratio=2` "Force 4:3" changed nothing). `3` = "Stretch to window" ignores aspect entirely |
+| ps2 | `pcsx2` | `ps2.videomode=640x480.59.94`, `ps2.pcsx2_ratio=Stretch` | was still on the ES mode entirely, rendering 640 wide left-anchored in a 720-wide window |
+| wii | `dolphin` | `wii.videomode=640x480.59.94` only | aspect deliberately left on Auto — forcing 4:3 would squash genuine 16:9 titles |
+
+Aspect values are emulator-specific and Batocera writes them straight through:
+`dolphin_aspect_ratio` 0 Auto / 1 Force 16:9 / 2 Force 4:3 / 3 Stretch;
+`pcsx2_ratio` `Stretch` / `Auto 4:3/3:2` / `4:3` / `16:9`.
+
+### GBA: why switchres picks 480i, and how to get 240p
+
+GBA is 240x**160**. At 15.68kHz / 59.73Hz vtotal is pinned at 262 progressive or
+525 interlaced, so the integer vertical scales available are:
+
+| scale | lines | raster | active |
+|---|---|---|---|
+| 1× | 160 | 262 progressive | 61% — two-thirds of the screen height |
+| 2× | 320 | does not fit in 262 | — |
+| 3× | 480 | 525 interlaced | 91.4% ✓ |
+
+So `SR-1_1280x480@59.73i` is the correct choice — 3× is the only integer scale
+that fills the screen, and 480 lines at 60Hz on a 15kHz monitor *must* be
+interlaced. The cost is interlace flicker on content that is natively
+progressive. For flicker-free 240p at the price of a non-integer 1.5× scale:
+
+```ini
+gba.videomode=640x240.60.00
+gba.retroarch.crt_switch_resolution=0
+gba.ratio=full
+```
+
+All three are needed. Without the second, switchres recomputes 3× and returns to
+480i whatever mode you set. Without the third you get ~140px black on each side:
+with CRT switching on, RetroArch's own CRT code supplies the non-square-pixel
+aspect (`[CRT] Setting aspect ratio: 5.333333`); turn switching off and that
+correction disappears, leaving RetroArch to treat 640x240 as 2.67:1.
 
 ---
 
@@ -216,8 +341,21 @@ visible already, with a small black margin — no adjustment needed. See
   `700x480_v2` throws `[: Illegal number` and the function bails out mid-way.
 
 - **`global.videomode` needs the refresh suffix.** `checkModeExists()` compares
-  against `batocera-resolution listModes` output, whose key is `720x480.59.95`.
-  A bare `720x480` fails validation and the mode is never set.
+  against `batocera-resolution listModes` output, whose keys look like
+  `720x454.59.94`. A bare `720x454` fails validation and the mode is never set.
+  Read the exact key back from `listModes` after creating a mode rather than
+  assuming the rate string.
+
+- **Batocera executes *everything* in `/userdata/system/scripts/`** as a
+  gameStart/gameStop hook. A backup copy left there (`crt-mode.sh.bak-858`) ran
+  alongside the real script and forced the previous mode back at every game
+  exit. Keep backups outside that directory.
+
+- **Per-game overrides beat per-system settings, silently.** ES writes
+  `n64["Super Mario 64 (USA).z64"].videomode=...` into `batocera.conf` when
+  Advanced Game Options is saved for a title, and that line wins over
+  `n64.videomode`. When one game in a system behaves differently from the rest,
+  check `grep -nE '^[a-z0-9]+\[' /userdata/system/batocera.conf` first.
 
 - **Don't use `es.resolution` in `/boot/batocera-boot.conf`.** That file is
   resynced from `batocera.conf` (it says so in its own header) and the value is
@@ -247,21 +385,42 @@ visible already, with a small black margin — no adjustment needed. See
 
 ```bash
 # what the CRTC is actually driving, incl. horizontal frequency
-DISPLAY=:0.0 xrandr --verbose --query | grep -A3 'SR-1_\|720x480'
+DISPLAY=:0.0 xrandr --verbose --query | grep -A2 '\*current'
 
 # every mode change, in order - the quickest way to spot a stray 31kHz mode
 grep 'Allocate new frame buffer' /var/log/Xorg.0.log
 
+# which mode emulatorlauncher asked for, and what switchres computed
+grep -E 'wanted video mode|resolution:' /userdata/system/logs/es_launch_stdout.log
+grep -E 'Switchres:|\[CRT\]'            /userdata/system/logs/es_launch_stderr.log
+
 # confirm the patched module is in place
 cat /tmp/i915-boot-swap.log
 ```
+
+**Measure, don't eyeball.** What the TV shows is confounded by its own overscan,
+so descriptions of where the black bars are cost several wrong turns here. Two
+reliable tools:
+
+```bash
+# what an emulator actually renders, and where
+DISPLAY=:0.0 ffmpeg -f x11grab -video_size 720x454 -i :0.0 -frames:v 1 -y shot.png
+# ...then find the bounding box of the non-black pixels
+
+# the window geometry itself - works even when the game is too dark to threshold
+DISPLAY=:0.0 xdotool search --name '.*' getwindowgeometry %@
+```
+
+The brightness method needs a bright scene: a first attempt on a dark game
+reported a 435x267 image with wildly asymmetric borders, which was pure
+measurement error.
 
 A healthy PS1 game launch looks like this — no 640x480 anywhere:
 
 ```
 1649.987  Allocate new frame buffer 1280x240 stride
 1651.149  Allocate new frame buffer 1280x480 stride     <- SR-1_1280x480@60.00i
-1676.929  Allocate new frame buffer 720x480 stride      <- back to ES
+1676.929  Allocate new frame buffer 720x454 stride      <- back to ES
 ```
 
 ```
@@ -285,3 +444,12 @@ SR-1_1280x480@60.00i  26.108MHz -HSync -VSync Interlace *current
 - An earlier experiment forcing `interlace_allowed` in `intel_dp.c` turned out
   to be a no-op on gen9 (it is already enabled there) and is deliberately not
   included here.
+- **Running ES on a super-resolution mode was tried and rejected.** The theory
+  was that menu and games sharing one horizontal frequency (games are 15.690kHz,
+  the menu 15.734kHz) would remove the TV's re-lock at every game launch. Both
+  `1280x452` and Tekken 3's exact `1280x480` worked technically, with
+  `es.customsargs="--screensize 720 480"` keeping the theme's proportions. The
+  menu looked worse and the timing gain was barely perceptible — a CRT locks on
+  sync, not pixel count, so the pixel clock alone buys nothing, and matching the
+  game frequency exactly costs the overscan trim, since a signal cannot be
+  identical to the game's *and* be shorter.

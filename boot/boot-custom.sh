@@ -38,3 +38,44 @@ if [ -f "$SPLASH" ] && ! grep -q 'no-keepaspect' "$SPLASH"; then
         echo "$(date): patched splash for 15kHz pixel aspect" >> "$LOG"
     fi
 fi
+
+# Give Xorg the interlaced 480i modeline up front, so the X server comes up on
+# it directly instead of starting on the kernel's 640x240 console mode and
+# being switched afterwards. EmulationStation does not survive a resolution
+# change once it is running - it goes black and never repaints - so the mode
+# has to be right before ES starts, not after.
+#
+# The console/splash stays on 640x240: fbcon cannot do interlace, and this only
+# affects the X server.
+#
+# Three modelines, all covering the SAME physical area of the tube - identical
+# horizontal timing (76.9% active, the switchres generic_15 proportion) at the
+# exact NTSC 15.734kHz, so switching between them moves nothing. They differ
+# only in how many pixels are sampled into that area:
+#
+#   720x454  ES menu. 454 of 525 lines active is the overscan trim - this TV
+#            hides 10 lines top and 10 bottom, and line pitch depends on Hfreq
+#            and vtotal only, so dropping active lines shortens the picture
+#            without touching the 59.94Hz field rate.
+#   720x480  full raster, for standalone emulators that stretch to the window.
+#   640x480  full raster and 4:3 in pixels, for standalone emulators that fit
+#            4:3 with square pixels (they pillarbox in a 1.5:1 window).
+#
+# Per-system assignment is `<system>.videomode` in batocera.conf; see README.
+mkdir -p /etc/X11/xorg.conf.d
+cat > /etc/X11/xorg.conf.d/20-crt-480i.conf << 'XORG_EOF'
+Section "Device"
+    Identifier "card0"
+    Driver "modesetting"
+    Option "monitor-DP-3" "CRT"
+EndSection
+
+Section "Monitor"
+    Identifier "CRT"
+    Modeline "720x454" 14.727 720 748 817 936 454 470 476 525 -hsync -vsync interlace
+    Modeline "720x480" 14.727 720 748 817 936 480 483 489 525 -hsync -vsync interlace
+    Modeline "640x480" 13.091 640 665 726 832 480 483 489 525 -hsync -vsync interlace
+    Option "PreferredMode" "720x454"
+EndSection
+XORG_EOF
+echo "$(date): wrote Xorg 480i modeline config" >> "$LOG"
