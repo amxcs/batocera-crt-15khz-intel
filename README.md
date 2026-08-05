@@ -124,6 +124,7 @@ chmod +x /userdata/system/custom-es-config /userdata/system/scripts/crt-mode.sh
 
 | | |
 |---|---|
+| `es-mode.sh` | switch the ES mode permanently — updates all five places it has to agree |
 | `try-mode.sh` | apply a modeline live, print its Hfreq/field rate, warn if it strays from NTSC |
 | `gen-overscan-ruler.py` | generate the labelled ruler used to measure overscan |
 | `gen-1px-frames.py` | finer 1px nested frames, once the ruler has got you close |
@@ -147,7 +148,7 @@ To revert everything: delete `/boot/boot-custom.sh`.
 ### `/userdata/system/batocera.conf`
 
 ```ini
-global.videomode=720x454.59.94
+global.videomode=640x454.59.94
 global.retroarch.crt_switch_resolution=1
 global.retroarch.crt_switch_resolution_super=1280
 global.retroarch.crt_switch_hires_menu=false
@@ -207,7 +208,7 @@ that gives htotal 936, and 15.734kHz then fixes the clock at 14.727.
 |---|---|---|---|---|
 | textbook NTSC `13.5/858` | 15.734k | 59.94 | 83.9% | 91.4% |
 | switchres `720x480` | 15.676k | 59.95 | 77.0% | 91.8% |
-| **this repo's `720x454`** | **15.734k** | **59.94** | **76.9%** | **86.5%** |
+| **this repo's `640x454`** | **15.734k** | **59.94** | **76.9%** | **86.5%** |
 | `SR-1_1280x480i` in game | 15.690k | 60.00 | 76.9% | 91.8% |
 | `SR-1_1280x240` in game | 15.660k | 60.00 | 77.0% | 92.0% |
 
@@ -229,6 +230,36 @@ lines are active. That is the overscan trim, and it is free:
 Rule when retrimming: **−2 active lines = +1 vback**, which keeps the vertical
 centre fixed. Trying to shrink the picture by growing vtotal instead is a dead
 end: 30 fewer visible lines would need vtotal 560, i.e. a 56.2Hz field rate.
+
+### How wide should the menu mode be?
+
+Independent of the trim, and easy to miss: **EmulationStation lays its theme out
+assuming square pixels**, and on a 15kHz CRT they are nowhere near square. A
+720x454 mode shown on a 4:3 tube has a pixel aspect of 0.84 — the whole
+interface is stretched 19% vertically, so nothing in the theme is the shape its
+designer intended. The width that makes it exact is `454 × 4/3 ≈ 605`.
+
+| ES mode | layout ratio | error vs 4:3 |
+|---|---|---|
+| `720x454` | 1.586 | 19% |
+| `640x454` | 1.410 | 5.5% |
+| `608x456` | 1.333 | 0% |
+
+All of these cover the identical area of the tube, so switching between them
+moves nothing — only the sampling density changes. Going narrower costs
+horizontal detail, but less than it looks: a 15kHz set fed over SCART RGB
+resolves roughly 520–600 pixels across the active line, so the extra samples in
+a 720-wide mode are largely not displayed anyway.
+
+`640x454` is the setting here — a deliberate middle: most of the proportional
+correction, no unusual dimensions. The geometrically exact `608x456` was tried
+and did appear to make menu transitions slightly choppier, which is plausible on
+two counts (an odd stride can drop Mesa off its fast path, and fewer horizontal
+pixels means fewer distinct positions for a sliding animation). Switch between
+them with [`tools/es-mode.sh`](tools/), which updates all five places the mode
+has to be consistent.
+
+### Measuring the trim
 
 Measure how much to trim with [`tools/gen-overscan-ruler.py`](tools/) — it draws
 labelled markers every 5px in from each edge, so you read one number per edge
@@ -271,7 +302,7 @@ in `batocera.conf`** is the per-system lever. Three modes are defined in
 
 | mode | modeline | for |
 |---|---|---|
-| `720x454` | `14.727 720 748 817 936 454 470 476 525` | ES menu (`global.videomode`) |
+| `640x454` | `13.091 640 665 726 832 454 470 476 525` | ES menu (`global.videomode`) |
 | `720x480` | `14.727 720 748 817 936 480 483 489 525` | standalone emulators that stretch |
 | `640x480` | `13.091 640 665 726 832 480 483 489 525` | standalone emulators that force 4:3 |
 
@@ -290,12 +321,30 @@ An emulator that fits 4:3 with square pixels will pillarbox in a 720x480 window
 |---|---|---|---|
 | n64 | `mupen64plus` + glide64mk2 | `n64.videomode=640x480.59.94` | scales the N64 framebuffer by an integer factor, so SM64's 320x224 became 640x448 and left 40px black each side of a 720-wide window |
 | gamecube | `dolphin` | `gamecube.videomode=640x480.59.94`, `gamecube.dolphin_aspect_ratio=3` | mode fixed the ~57px side bars; 15px remained because Dolphin rendered 625x480 regardless of aspect mode (the game's VI active width, not aspect fitting — `dolphin_aspect_ratio=2` "Force 4:3" changed nothing). `3` = "Stretch to window" ignores aspect entirely |
-| ps2 | `pcsx2` | `ps2.videomode=640x480.59.94`, `ps2.pcsx2_ratio=Stretch` | was still on the ES mode entirely, rendering 640 wide left-anchored in a 720-wide window |
+| ps2 | `pcsx2` | `ps2.videomode=640x480.59.94` | was still on the ES mode entirely, rendering 640 wide left-anchored in a 720-wide window. `pcsx2_ratio=Stretch` was needed while the window was 720 wide; once it is 640x480 — exactly 4:3 — `Auto 4:3/3:2` fills it just as completely and keeps genuine 16:9 titles undistorted |
 | wii | `dolphin` | `wii.videomode=640x480.59.94` only | aspect deliberately left on Auto — forcing 4:3 would squash genuine 16:9 titles |
 
 Aspect values are emulator-specific and Batocera writes them straight through:
 `dolphin_aspect_ratio` 0 Auto / 1 Force 16:9 / 2 Force 4:3 / 3 Stretch;
 `pcsx2_ratio` `Stretch` / `Auto 4:3/3:2` / `4:3` / `16:9`.
+
+### Turn the deinterlacer off
+
+Worth doing once the display chain is genuinely interlaced, and easy to overlook
+because it is not a geometry setting. PCSX2 defaults to `deinterlace_mode = 0`
+(Automatic), so a 480i game goes: two fields → merged into one progressive frame
+→ handed to an interlaced mode that splits it back into fields. That costs the
+original field timing and adds blend ghosting on motion, to fix a problem that
+does not exist here.
+
+```ini
+ps2.pcsx2_deinterlacing=1     # "None"
+```
+
+The fields then pass through untouched, 60 per second, exactly as the console
+would drive the tube. Combing on fast edges is the correct appearance, not an
+artefact. `upscale_multiplier=1` (native internal resolution) is worth checking
+at the same time, for the same reason.
 
 ### GBA: why switchres picks 480i, and how to get 240p
 
@@ -342,7 +391,7 @@ correction disappears, leaving RetroArch to treat 640x240 as 2.67:1.
 
 - **`global.videomode` needs the refresh suffix.** `checkModeExists()` compares
   against `batocera-resolution listModes` output, whose keys look like
-  `720x454.59.94`. A bare `720x454` fails validation and the mode is never set.
+  `640x454.59.94`. A bare `640x454` fails validation and the mode is never set.
   Read the exact key back from `listModes` after creating a mode rather than
   assuming the rate string.
 
@@ -404,7 +453,7 @@ reliable tools:
 
 ```bash
 # what an emulator actually renders, and where
-DISPLAY=:0.0 ffmpeg -f x11grab -video_size 720x454 -i :0.0 -frames:v 1 -y shot.png
+DISPLAY=:0.0 ffmpeg -f x11grab -video_size 640x454 -i :0.0 -frames:v 1 -y shot.png
 # ...then find the bounding box of the non-black pixels
 
 # the window geometry itself - works even when the game is too dark to threshold
@@ -420,7 +469,7 @@ A healthy PS1 game launch looks like this — no 640x480 anywhere:
 ```
 1649.987  Allocate new frame buffer 1280x240 stride
 1651.149  Allocate new frame buffer 1280x480 stride     <- SR-1_1280x480@60.00i
-1676.929  Allocate new frame buffer 720x454 stride      <- back to ES
+1676.929  Allocate new frame buffer 640x454 stride      <- back to ES
 ```
 
 ```

@@ -16,11 +16,11 @@
 # batocera-resolution parses mode names as WxH and runs numeric tests on the
 # halves, so anything non-numeric throws '[: Illegal number'.
 LOG="/userdata/system/logs/crt-mode.log"
-MODE="720x454"
+MODE="640x454"
 
 echo "$(date): applying CRT mode $MODE" >> "$LOG"
 xrandr --query | grep -q "$MODE" || \
-    xrandr --newmode "$MODE" 14.727 720 748 817 936 454 470 476 525 -hsync -vsync interlace >>"$LOG" 2>&1
+    xrandr --newmode "$MODE" 13.091 640 665 726 832 454 470 476 525 -hsync -vsync interlace >>"$LOG" 2>&1
 xrandr --addmode DP-3 "$MODE" >>"$LOG" 2>&1
 xrandr --output DP-3 --mode "$MODE" >>"$LOG" 2>&1
 

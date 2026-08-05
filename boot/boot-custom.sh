@@ -72,10 +72,10 @@ EndSection
 
 Section "Monitor"
     Identifier "CRT"
-    Modeline "720x454" 14.727 720 748 817 936 454 470 476 525 -hsync -vsync interlace
+    Modeline "640x454" 13.091 640 665 726 832 454 470 476 525 -hsync -vsync interlace
     Modeline "720x480" 14.727 720 748 817 936 480 483 489 525 -hsync -vsync interlace
     Modeline "640x480" 13.091 640 665 726 832 480 483 489 525 -hsync -vsync interlace
-    Option "PreferredMode" "720x454"
+    Option "PreferredMode" "640x454"
 EndSection
 XORG_EOF
 echo "$(date): wrote Xorg 480i modeline config" >> "$LOG"

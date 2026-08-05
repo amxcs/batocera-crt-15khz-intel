@@ -14,7 +14,7 @@ EVENT="$1"
 
 export DISPLAY="${DISPLAY:-:0.0}"
 LOG="/userdata/system/logs/crt-mode.log"
-MODE="720x454"
+MODE="640x454"
 OUTPUT="DP-3"
 
 echo "$(date): gameStop, restoring $MODE" >> "$LOG"
@@ -22,7 +22,7 @@ echo "$(date): gameStop, restoring $MODE" >> "$LOG"
 # The mode is created by custom-es-config at session start, but recreate it if
 # an emulator wiped the mode list.
 xrandr --query | grep -q "$MODE" || \
-    xrandr --newmode "$MODE" 14.727 720 748 817 936 454 470 476 525 -hsync -vsync interlace >>"$LOG" 2>&1
+    xrandr --newmode "$MODE" 13.091 640 665 726 832 454 470 476 525 -hsync -vsync interlace >>"$LOG" 2>&1
 xrandr --query | grep -A20 "^$OUTPUT connected" | grep -q "$MODE" || \
     xrandr --addmode "$OUTPUT" "$MODE" >>"$LOG" 2>&1
 
