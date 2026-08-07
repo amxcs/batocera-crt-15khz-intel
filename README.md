@@ -36,9 +36,24 @@ most Intel desktop iGPUs from roughly 6th to 9th generation.
 |---|---|
 | Batocera | 43.1, kernel 6.18.16, X11 + openbox |
 | Display | Sony Trinitron — KV-29LS30E on A, a KV-21 on B |
-| Output | DisplayPort → VGA → SCART sync combiner → consumer CRT TV |
+| Output | VGA → SCART sync combiner → consumer CRT TV |
 | Cable | simple homemade VGA-to-SCART cable |
-| Connector | `DP-3` (no EDID) |
+| Connector | `DP-3` (no EDID) — see below |
+
+The cable goes into the machine's **15-pin VGA port** — nothing is plugged into a
+DisplayPort socket. The driver still calls the output `DP-3`, because on these
+Minis the VGA port is a flex-port option fed by an on-board DisplayPort-to-VGA
+bridge. The kernel lists no analog connector at all:
+
+```
+card0-DP-1      disconnected      card0-HDMI-A-1  disconnected
+card0-DP-2      disconnected      card0-HDMI-A-2  disconnected
+card0-DP-3      connected         card0-HDMI-A-3  disconnected
+```
+
+Worth knowing before you go hunting for a `VGA-1` that does not exist — and it
+is also why there is no EDID (`/sys/class/drm/card0-DP-3/edid` is 0 bytes), which
+is what lets arbitrary modelines through in the first place.
 
 The point worth making: a used 1-litre office box with an integrated GPU and no
 extra hardware drives a 29" Trinitron at true 15kHz, interlaced modes included.
@@ -98,8 +113,10 @@ loop. Don't go down this road.
 ### Why not HDMI instead of DisplayPort?
 
 Worse. An HDMI→VGA adapter presents its own EDID pinned to 31–75 kHz, and even
-*progressive* 15kHz modes get rejected on that port. DP with no EDID is far more
-permissive.
+*progressive* 15kHz modes get rejected on that port. The VGA flex port, which the
+driver exposes as DisplayPort and which reports no EDID at all, is far more
+permissive — an external adapter brings its own opinion about what the display
+can do, the built-in bridge does not.
 
 ---
 
