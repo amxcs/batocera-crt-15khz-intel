@@ -344,6 +344,17 @@ fits a 15kHz raster, so both need a deliberate compromise rather than a setting
 that simply makes them correct. See *The two handhelds are a compromise, not a
 fit* below.
 
+**On Dreamcast, pick 60Hz when a PAL game asks.** European releases often open
+with a 50/60Hz selector, and the choice reaches all the way to the modeline —
+the same disc gives either `SR-1_1280x480@59.94i` (vtotal 523) or
+`SR-1_1280x480@50.00i` (vtotal 627). Horizontal frequency is ~15.68kHz either
+way, so line pitch is unchanged and the 50Hz mode's 480 active lines fill only
+76.6% of the raster instead of 91.8% — a picture about 17% shorter, on a set
+that may well hold separate geometry for 50Hz signals. 60Hz keeps every system
+in one modeline family and one TV calibration, and avoids the PAL speed penalty
+as a bonus. Nothing in `batocera.conf` overrides this: the emulated console is
+already on `reicast_broadcast=NTSC`, and the game asks anyway.
+
 ---
 
 ## Settings
