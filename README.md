@@ -188,18 +188,11 @@ Tested on this setup and landing in the frame correctly:
 | Sega | Master System, Mega Drive, 32X, Game Gear |
 | Sony | PS1, PS2 |
 
-Two of these need per-system settings rather than working out of the box —
-**GBA** and **Game Gear**, both for the same reason. See
-*GBA: why switchres picks 480i, and how to get 240p* below; Game Gear needs the
-same three keys under its own prefix, because 144 active lines cannot be fitted
-into a 15kHz progressive raster and switchres doubles them to 288 at a
-frequency the TV cannot lock:
-
-```ini
-gamegear.videomode=640x240.60.00
-gamegear.retroarch.crt_switch_resolution=0
-gamegear.ratio=full
-```
+Two of these do not work out of the box — **GBA** and **Game Gear**. Both are
+handhelds built around an LCD panel, with no TV output and no line count that
+fits a 15kHz raster, so both need a deliberate compromise rather than a setting
+that simply makes them correct. See *The two handhelds are a compromise, not a
+fit* below.
 
 ---
 
@@ -406,6 +399,29 @@ would drive the tube. Combing on fast edges is the correct appearance, not an
 artefact. `upscale_multiplier=1` (native internal resolution) is worth checking
 at the same time, for the same reason.
 
+### The two handhelds are a compromise, not a fit
+
+GBA and Game Gear are the only systems here that need per-system settings, and
+for the same underlying reason: **they were never meant to reach a CRT.** Every
+other console on the list was designed to drive an NTSC television, so its frame
+already fits a 15kHz raster — 224 or 240 active lines inside a 262-line frame.
+These two were built around a small LCD panel and have no TV output at all. GBA
+is 240x**160**, Game Gear 160x**144**. Nobody ever had to make those numbers land
+on a scanline.
+
+The result is that neither has a usable integer vertical scale. 1× leaves the
+picture floating in the middle of the tube; 2× does not fit in a progressive
+15kHz frame at all; 3× fits only by going interlaced, which reintroduces flicker
+on content that is natively progressive — and these are handheld games, so
+essentially all of it is.
+
+So something has to give, and the choice below is **non-integer scaling in
+exchange for a stable progressive picture**: run a real 240p mode and let the
+emulator scale unevenly into it, rather than take a mathematically clean 3× that
+flickers. Uneven line doubling on a CRT is far less objectionable than 30Hz
+interlace shimmer on a static HUD. The two sections that follow are the same
+decision applied twice.
+
 ### GBA: why switchres picks 480i, and how to get 240p
 
 GBA is 240x**160**. At 15.68kHz / 59.73Hz vtotal is pinned at 262 progressive or
@@ -433,6 +449,40 @@ All three are needed. Without the second, switchres recomputes 3× and returns t
 with CRT switching on, RetroArch's own CRT code supplies the non-square-pixel
 aspect (`[CRT] Setting aspect ratio: 5.333333`); turn switching off and that
 correction disappears, leaving RetroArch to treat 640x240 as 2.67:1.
+
+### Game Gear: 144 lines fit nowhere, and switchres leaves the spec
+
+Game Gear is 160x**144** — even further from a scanline count than GBA. At
+15.66kHz / 60Hz the integer scales are:
+
+| scale | lines | raster | active |
+|---|---|---|---|
+| 1× | 144 | 261 progressive | 55% — a small box in the middle |
+| 2× | 288 | needs ~17.3kHz at 60Hz | out of range |
+| 3× | 432 | 525 interlaced | 82% ✓ but interlaced |
+
+Left alone, switchres does not pick either usable option. It doubles to 288 lines
+and then, unable to reach 60Hz at that line count inside a 15kHz budget, drops
+the field rate instead of the scale:
+
+```
+SR-1_1280x288@52.43   27.216MHz  1280 1334 1462 1680  288 289 292 309  -hsync -vsync
+                      → 16.20kHz / 52.43Hz
+```
+
+That is progressive, but at a horizontal frequency a 15kHz set cannot lock and a
+field rate 13% below what the games run at. The fix is the same three keys as
+GBA, for the same 240p-with-non-integer-scaling reason:
+
+```ini
+gamegear.videomode=640x240.60.00
+gamegear.retroarch.crt_switch_resolution=0
+gamegear.ratio=full
+```
+
+Master System, on the same core and the same `.zip` files, needs none of this —
+it was a TV console, so switchres produces a clean `SR-1_1280x192@59.92` at
+15.64kHz without help. That contrast is the whole point of this section.
 
 ---
 

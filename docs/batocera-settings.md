@@ -53,11 +53,18 @@ The ports at the bottom are set to `720x480` as a default and have **not** been
 verified individually. If one of them shows side bars, it belongs in the
 `640x480` group.
 
-## GBA — the one libretro exception
+## The handhelds — the libretro exceptions
+
+Every other console here was designed to drive a television, so switchres has a
+15kHz raster to aim at and needs no help. GBA and Game Gear were built around an
+LCD panel and never had a TV output, so their line counts — 160 and 144 — fit
+nothing. Both therefore need a compromise: a real 240p mode with non-integer
+vertical scaling, rather than an integer scale that is either far too small or
+interlaced.
 
 GBA is 240x160, and 3× (480 lines, interlaced) is the only integer vertical
-scale that fills a 15kHz raster. That is the right answer, but it flickers on
-content that is natively progressive. To run 240p instead:
+scale that fills a 15kHz raster. That is the mathematically right answer, but it
+flickers on content that is natively progressive. To run 240p instead:
 
 ```ini
 gba.videomode=640x240.60.00
@@ -65,10 +72,24 @@ gba.retroarch.crt_switch_resolution=0
 gba.ratio=full
 ```
 
-All three are required. Without the second, switchres recomputes 3× and returns
-to 480i whatever mode you set. Without the third, RetroArch loses the
-non-square-pixel correction that its CRT code was supplying and leaves ~140px
-black on each side.
+Game Gear is 160x144 and is worse: 2× is 288 lines, which needs ~17.3kHz at 60Hz.
+Left alone switchres takes it anyway and drops the field rate to stay inside its
+frequency budget, producing `SR-1_1280x288@52.43` at 16.20kHz — outside what a
+15kHz set can lock. Same three keys, same reasoning:
+
+```ini
+gamegear.videomode=640x240.60.00
+gamegear.retroarch.crt_switch_resolution=0
+gamegear.ratio=full
+```
+
+All three are required in both cases. Without the second, switchres recomputes
+its own scale and returns to its mode whatever you set. Without the third,
+RetroArch loses the non-square-pixel correction that its CRT code was supplying
+and leaves a wide black border on each side.
+
+Master System runs on the same core as Game Gear and needs none of this — it was
+a TV console, and switchres gives it a clean `SR-1_1280x192@59.92` at 15.64kHz.
 
 ## Checking for per-game overrides
 
