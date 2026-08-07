@@ -9,12 +9,34 @@ The smallest number still visible on an edge is how much that edge is losing.
 Everything is >=3px thick so it survives interlace: a 1px horizontal line
 lives in only one field and flickers at 30Hz, which is unreadable.
 """
+import glob
+import sys
+
 from PIL import Image, ImageDraw, ImageFont
 
 W, H = 720, 480
 DEPTHS = list(range(5, 65, 5))          # 5..60
-FONT = ImageFont.truetype(
-    "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 20)
+
+
+def pick_font(size=20):
+    """Batocera ships no system font directory, so search for any TrueType."""
+    for pattern in (
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+            "/usr/share/fonts/**/*Bold*.ttf",
+            "/usr/lib/python3*/site-packages/pygame/freesansbold.ttf",
+            "/usr/share/fonts/**/*.ttf",
+            "/usr/**/*Bold*.ttf"):
+        for path in sorted(glob.glob(pattern, recursive=True)):
+            try:
+                return ImageFont.truetype(path, size)
+            except OSError:
+                continue
+    # Last resort: the built-in bitmap font. Small, but the numbers are still
+    # legible, and a ruler with no labels would be useless.
+    return ImageFont.load_default()
+
+
+FONT = pick_font()
 
 img = Image.new("RGB", (W, H), (0, 0, 0))
 d = ImageDraw.Draw(img)
@@ -57,7 +79,6 @@ d.rectangle([W // 2 - 50, H // 2 - 1, W // 2 + 50, H // 2 + 1], fill="white")
 label(W // 2, H // 2 - 70, "READ THE SMALLEST", (170, 170, 170), "ms")
 label(W // 2, H // 2 + 60, "VISIBLE NUMBER PER EDGE", (170, 170, 170), "ms")
 
-out = ("/tmp/claude-1000/-home-retro/00dc9f80-e78a-466b-809f-f5896d292283"
-       "/scratchpad/crt-ruler.png")
+out = sys.argv[1] if len(sys.argv) > 1 else "/tmp/crt-ruler.png"
 img.save(out)
 print(out)

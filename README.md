@@ -234,6 +234,7 @@ chmod +x /userdata/system/custom-es-config /userdata/system/scripts/crt-mode.sh
 | `gen-1px-frames.py` | finer 1px nested frames, once the ruler has got you close |
 | `show-test.sh` | display a still 1:1 on the CRT (mpv, nearest-neighbour, no dither) |
 | `install.sh` | do all of the above in one command; see *One command* |
+| `calibrate.sh` | interactive overscan calibration — ruler on the tube, modeline out |
 | `es-frame.sh` | ES `--screensize`/`--screenoffset`; **read its header first**, it does not do what it sounds like |
 
 Keep a copy of the stock module first — if it ever fails to load you get no
@@ -267,12 +268,40 @@ only way to make *games* show more; no Batocera setting can do it for them.
 
 **2. Trim the menu until it fits inside that frame.**
 
-Only now handle EmulationStation. Generate the ruler with
+Only now handle EmulationStation. [`tools/calibrate.sh`](tools/) walks the whole
+step: it asks whether you have done part 1, puts the ruler on the tube, takes one
+number per edge, works out the modeline and writes it everywhere it has to agree.
+
+```bash
+ssh -t root@batocera /userdata/system/crt-tools/calibrate.sh
+```
+
+The `-t` is required — it is interactive, and `ssh` gives the remote session no
+terminal without it. `install.sh` offers to run this at the end, and puts the
+helpers in `/userdata/system/crt-tools/`.
+
+By hand it is the same three moves: generate the ruler with
 [`tools/gen-overscan-ruler.py`](tools/) — labelled markers 5px, 10px, 15px… in
-from each edge — and display it 1:1 with [`tools/show-test.sh`](tools/). Read one
-number per edge, then trim that many active lines with
-[`tools/es-mode.sh`](tools/), which updates all five places the mode has to
-agree.
+from each edge — display it 1:1 with [`tools/show-test.sh`](tools/), then pass the
+result to [`tools/es-mode.sh`](tools/), which updates all five places.
+
+The arithmetic, if you would rather do it yourself: hiding **T** lines at the top
+and **B** at the bottom means moving them out of the active area and into the
+porches, leaving `vtotal` alone so nothing about the frequency changes.
+
+```
+vactive     = 480 - T - B
+vsync start = 483 - T
+vsync end   = 489 - T
+vtotal      = 525          (unchanged)
+```
+
+The tested `640x454` mode is what this gives for T=13, B=13.
+
+Horizontal overscan is **not** trimmed this way. The 76.9% horizontal active
+proportion is what makes the menu and the games land in the same place; use the
+TV's H-Size for that instead — and then measure again, because moving the TV's
+geometry changes the vertical reading too.
 
 Trim **active lines, not the timing**: line pitch depends on the horizontal
 frequency and vtotal alone, so −2 active lines with +1 vback keeps the vertical

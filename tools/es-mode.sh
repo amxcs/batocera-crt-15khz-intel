@@ -16,24 +16,45 @@
 # scanout buffers, and an odd stride can drop Mesa off its fast path.
 set -e
 
-case "$1" in
-    720x454) ML="14.727 720 748 817 936 454 470 476 525" ;;
-    640x454) ML="13.091 640 665 726 832 454 470 476 525" ;;
-    606x454) ML="12.399 606 630 688 788 454 470 476 525" ;;
-    608x456) ML="12.430 608 632 690 790 456 471 477 525" ;;
-    *) sed -n '2,13p' "$0" | sed 's/^# \{0,1\}//'; exit 1 ;;
-esac
+# A second argument is a full modeline ("clock h hss hse htotal v vss vse
+# vtotal"), which is how calibrate.sh hands over a mode measured off the tube.
+if [ -n "${2:-}" ]; then
+    ML="$2"
+else
+    case "$1" in
+        720x454) ML="14.727 720 748 817 936 454 470 476 525" ;;
+        640x454) ML="13.091 640 665 726 832 454 470 476 525" ;;
+        606x454) ML="12.399 606 630 688 788 454 470 476 525" ;;
+        608x456) ML="12.430 608 632 690 790 456 471 477 525" ;;
+        *) sed -n '2,13p' "$0" | sed 's/^# \{0,1\}//'; exit 1 ;;
+    esac
+fi
 MODE="$1"
 export DISPLAY=:0.0
 
+# DP-3 is this author's board. Everything below writes the connector name into
+# config files, so it has to be the local one.
+OUT="${CRT_OUTPUT:-$(xrandr --query 2>/dev/null | awk '/ connected/{print $1; exit}')}"
+[ -n "$OUT" ] || { echo "no connected output; set CRT_OUTPUT"; exit 1; }
+
 xrandr --newmode "$MODE" $ML -hsync -vsync interlace 2>/dev/null || true
-xrandr --addmode DP-3 "$MODE" 2>/dev/null || true
-xrandr --output DP-3 --mode "$MODE"
+xrandr --addmode "$OUT" "$MODE" 2>/dev/null || true
+xrandr --output "$OUT" --mode "$MODE"
 
 # Never assume the rate suffix - checkModeExists() compares against this exact
 # string and a mismatch means the mode is silently never set.
 KEY=$(batocera-resolution listModes | grep "^${MODE}\." | head -1 | cut -d: -f1)
-[ -n "$KEY" ] || { echo "mode $MODE not listed by batocera-resolution"; exit 1; }
+
+# On some builds listModes only reports the max-* entries and never enumerates
+# the custom modelines, so there is nothing to match. That is not fatal: any
+# value other than "default" makes emulatorlauncher skip checkModeExists()
+# entirely. Build the key from the rate xrandr reports for the mode we just set.
+if [ -z "$KEY" ]; then
+    RATE=$(xrandr --query | awk -v m="$MODE" '$1==m {gsub(/[*+]/,"",$2); print $2; exit}')
+    [ -n "$RATE" ] || { echo "mode $MODE was not set; cannot determine its rate"; exit 1; }
+    KEY="${MODE}.${RATE}"
+    echo "listModes does not enumerate custom modes here; using $KEY from xrandr"
+fi
 batocera-settings-set global.videomode "$KEY"
 
 # The mode also lives in the two scripts that re-assert it at ES start and

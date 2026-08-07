@@ -7,6 +7,8 @@ interlaced mode the left/right verticals are solid (they appear on every
 scanline) while the top/bottom horizontals live in a single field and will
 flicker at 30Hz - that is expected, not a fault.
 """
+import sys
+
 from PIL import Image, ImageDraw
 
 W, H = 720, 480
@@ -53,7 +55,6 @@ d.text((W // 2 - 95, H // 2 + 60), "1px frames: white=0 red=2 yellow=4",
 d.text((W // 2 - 95, H // 2 + 76), "green=6 blue=8 magenta=16 grey=24",
        fill=(170, 170, 170))
 
-out = ("/tmp/claude-1000/-home-retro/00dc9f80-e78a-466b-809f-f5896d292283"
-       "/scratchpad/crt-test-1px.png")
+out = sys.argv[1] if len(sys.argv) > 1 else "/tmp/crt-test-1px.png"
 img.save(out)
 print(out)

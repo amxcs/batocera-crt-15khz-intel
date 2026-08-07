@@ -149,8 +149,9 @@ if [ "$ASSUME_YES" = 0 ] && [ "$DRY" = 0 ]; then
     say ""
     say "About to write to /boot, $CONF and /userdata/system/."
     say "Originals are backed up to $BACKUP/."
-    printf 'Continue? [y/N] '
-    read -r ans
+    # /dev/tty, not stdin: under `curl ... | bash` stdin is the script itself.
+    printf 'Continue? [y/N] ' > /dev/tty
+    read -r ans < /dev/tty || die "no terminal to confirm on -- add --yes, or use ssh -t"
     case "$ans" in y|Y|yes|YES) ;; *) die "aborted" ;; esac
 fi
 
@@ -226,7 +227,13 @@ personalise /userdata/system/custom-es-config
 run "chmod +x /userdata/system/custom-es-config"
 say "   /userdata/system/custom-es-config"
 
-run "mkdir -p /userdata/system/scripts /userdata/system/logs"
+run "mkdir -p /userdata/system/scripts /userdata/system/logs /userdata/system/crt-tools"
+for t in calibrate.sh es-mode.sh show-test.sh try-mode.sh gen-overscan-ruler.py gen-1px-frames.py; do
+    fetch "tools/$t" "/userdata/system/crt-tools/$t"
+    run "chmod +x '/userdata/system/crt-tools/$t'"
+done
+say "   /userdata/system/crt-tools/ (calibration helpers)"
+
 backup /userdata/system/scripts/crt-mode.sh
 fetch userdata/system/scripts/crt-mode.sh /userdata/system/scripts/crt-mode.sh
 personalise /userdata/system/scripts/crt-mode.sh
@@ -296,3 +303,32 @@ fi
 say ""
 say "   Reboot to apply. If the screen stays black, SSH still works:"
 say "     rm /boot/boot-custom.sh   # reverts the module swap and the modelines"
+
+# --- 7. calibration ----------------------------------------------------------
+# Only offered, never assumed: it needs a terminal and, more importantly, it
+# needs the TV's own geometry to be set first. Under `curl | bash` there is no
+# terminal at all unless ssh was given -t.
+CAL=/userdata/system/crt-tools/calibrate.sh
+step "Overscan calibration"
+
+if [ "$DRY" = 1 ]; then
+    say "   [dry-run] would offer to run $CAL"
+elif [ ! -e /dev/tty ] || ! (: < /dev/tty) 2>/dev/null; then
+    say "   No terminal here, so this part cannot be interactive."
+    say "   After the reboot, run:"
+    say ""
+    say "     ssh -t root@$(hostname) $CAL"
+else
+    say "   The remaining step is trimming the picture to fit your tube, which"
+    say "   needs you in front of the television. It reads one number per edge"
+    say "   off a ruler pattern and writes the modeline for you."
+    say ""
+    say "   It should be done AFTER a reboot, and after the TV's own geometry"
+    say "   has been set with 240p Test Suite."
+    printf '   Run it now anyway? [y/N] ' > /dev/tty
+    read -r ans < /dev/tty || ans=n
+    case "$ans" in
+        y|Y|yes|YES) exec "$CAL" ;;
+        *) say ""; say "   Later:  ssh -t root@$(hostname) $CAL" ;;
+    esac
+fi
