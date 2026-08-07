@@ -16,6 +16,11 @@
 set -u
 
 REPO_RAW="https://raw.githubusercontent.com/amxcs/batocera-crt-15khz-intel/master"
+RELEASES="https://github.com/amxcs/batocera-crt-15khz-intel/releases/download"
+
+# The build this repo targets. A different Batocera means a different kernel,
+# and a module built for another kernel is worse than no module at all.
+TARGET_BATOCERA="43.1"
 BACKUP=/userdata/crt-install-backup
 CONF=/userdata/system/batocera.conf
 DRY=0
@@ -23,6 +28,7 @@ ASSUME_YES=0
 MODULE=""
 OUTPUT=""
 FORCE_MODULE=0
+MODULE_AUTO=0
 BOOT_RW=0
 
 # /boot must never be left writable, however this script exits.
@@ -44,7 +50,8 @@ usage() {
     cat <<EOF
 Usage: install.sh [options]
 
-  --module PATH|URL   patched i915.ko to install (built for this exact kernel)
+  --module PATH|URL   patched i915.ko to install; defaults to the prebuilt one
+                      published for this kernel, when Batocera matches
   --force-module      install it even if its vermagic cannot be read
   --output NAME       force the connector name instead of auto-detecting
   --dry-run           print what would happen, change nothing
@@ -105,13 +112,37 @@ fi
 # --- 2. the patched module ---------------------------------------------------
 step "Patched i915 module"
 
+BATO="$(cut -d' ' -f1 /usr/share/batocera/batocera.version 2>/dev/null)"
+say "   Batocera: ${BATO:-unknown}"
+
+# With no --module, take the prebuilt one published for this exact kernel. It
+# is only offered when the Batocera version matches, because that is what makes
+# the kernel version predictable.
+if [ -z "$MODULE" ]; then
+    if [ "$BATO" = "$TARGET_BATOCERA" ]; then
+        MODULE="$RELEASES/batocera-${TARGET_BATOCERA}/i915-patched-${KVER}.ko"
+        MODULE_AUTO=1
+        say "   using the prebuilt module for Batocera $TARGET_BATOCERA"
+    elif [ -n "$BATO" ]; then
+        warn "this is Batocera $BATO, and the prebuilt module is for $TARGET_BATOCERA."
+        warn "Kernel $KVER almost certainly differs, so no module will be installed."
+        warn "Build one (see the README) and re-run with --module."
+    fi
+fi
+
 MODULE_LOCAL=""
 if [ -n "$MODULE" ]; then
     case "$MODULE" in
         http://*|https://*)
             MODULE_LOCAL=/tmp/i915-patched.ko
             say "   downloading $MODULE"
-            run "curl -fsSL '$MODULE' -o '$MODULE_LOCAL'" || die "download failed"
+            if ! run "curl -fsSL '$MODULE' -o '$MODULE_LOCAL'"; then
+                # A module the user named is a hard requirement; one this script
+                # chose is a convenience, so its absence must not stop the rest.
+                [ "$MODULE_AUTO" = 1 ] || die "download failed: $MODULE"
+                warn "no prebuilt module published for kernel $KVER -- continuing without it"
+                MODULE=""; MODULE_LOCAL=""
+            fi
             ;;
         *)
             [ -f "$MODULE" ] || die "no such file: $MODULE"

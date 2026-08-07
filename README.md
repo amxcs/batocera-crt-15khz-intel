@@ -34,7 +34,7 @@ most Intel desktop iGPUs from roughly 6th to 9th generation.
 
 | | |
 |---|---|
-| Batocera | 43.1, kernel 6.18.16, X11 + openbox |
+| Batocera | **43.1**, kernel 6.18.16, X11 + openbox — the version this targets |
 | Display | Sony Trinitron — KV-29LS30E on A, a KV-21 on B |
 | Output | VGA → SCART sync combiner → consumer CRT TV |
 | Cable | simple homemade VGA-to-SCART cable |
@@ -169,23 +169,30 @@ Build deps on Ubuntu: `flex bison libssl-dev libelf-dev dwarves`.
 
 ### One command
 
-With the box on the network and the module already built (see *Build* above),
-everything else installs itself over SSH:
+> **This is written for Batocera 43.1, kernel 6.18.16.** Flash that version and
+> everything below works as written, module included. On any other version the
+> installer detects the mismatch, skips the prebuilt module and tells you so —
+> the rest still installs, but 480i needs a module built against *your* kernel.
+> See *Build*.
+
+Fresh Batocera 43.1, on the network, SSH enabled. One command:
 
 ```bash
-ssh root@batocera 'curl -fsSL https://raw.githubusercontent.com/amxcs/batocera-crt-15khz-intel/master/tools/install.sh | bash -s -- --yes --module https://your-host/i915-patched.ko'
+ssh root@batocera 'curl -fsSL https://raw.githubusercontent.com/amxcs/batocera-crt-15khz-intel/master/tools/install.sh | bash -s -- --yes'
 ```
 
-Rehearse it first — `--dry-run` prints every write without making one, and still
-checks that your module matches the running kernel:
+That is the whole installation. With no `--module` it fetches the prebuilt
+`i915-patched-6.18.16.ko` from this repo's releases, checks its `vermagic`
+against the running kernel, and refuses it if they differ. Then reboot.
+
+Rehearse first if you prefer — `--dry-run` prints every write without making
+one, and still performs the module check:
 
 ```bash
-ssh root@batocera 'curl -fsSL https://raw.githubusercontent.com/amxcs/batocera-crt-15khz-intel/master/tools/install.sh | bash -s -- --dry-run --yes --module /userdata/i915-patched.ko'
+ssh root@batocera 'curl -fsSL https://raw.githubusercontent.com/amxcs/batocera-crt-15khz-intel/master/tools/install.sh | bash -s -- --dry-run --yes'
 ```
 
-`--module` takes a local path or a URL, and may be left out entirely: everything
-else still goes in and progressive 15kHz works, but 480i does not until you add
-the module and reboot.
+To use your own module instead, `--module` takes a local path or a URL.
 
 What it does: detects the connector, verifies the module's `vermagic` against the
 running kernel and **refuses to install a mismatched one** (that is the failure
