@@ -146,6 +146,63 @@ To revert everything: delete `/boot/boot-custom.sh`.
 
 ---
 
+## Calibration, in order
+
+Do these two steps in this order. They are not independent: the TV's own
+geometry moves *everything*, so calibrating the menu first only means redoing it
+after the first time you touch the service menu.
+
+**1. Set the TV's geometry against a game, not against the menu.**
+
+Launch **240p Test Suite** for PS1 and use its grid and overscan patterns to set
+H/V size, H/V position and pincushion on the TV itself. Games run on the full
+raster, so what you set here is the real frame — the widest, most centred
+picture the tube can give you. Sony Trinitron service-menu values recorded for
+this setup are in [`docs/sony-trinitron-service-values.md`](docs/).
+
+Get this right before touching anything in software. Reducing **V-Size** is the
+only way to make *games* show more; no Batocera setting can do it for them.
+
+**2. Trim the menu until it fits inside that frame.**
+
+Only now handle EmulationStation. Generate the ruler with
+[`tools/gen-overscan-ruler.py`](tools/) — labelled markers 5px, 10px, 15px… in
+from each edge — and display it 1:1 with [`tools/show-test.sh`](tools/). Read one
+number per edge, then trim that many active lines with
+[`tools/es-mode.sh`](tools/), which updates all five places the mode has to
+agree.
+
+Trim **active lines, not the timing**: line pitch depends on the horizontal
+frequency and vtotal alone, so −2 active lines with +1 vback keeps the vertical
+centre where it is. See *Overscan: trim active lines, not the timing* below for
+why, and *Do not use EmulationStation's `--screensize` for this* for the obvious
+approach that does not work.
+
+### Confirmed working
+
+Tested on this setup and landing in the frame correctly:
+
+| | |
+|---|---|
+| Nintendo | NES, SNES, N64, GBA |
+| Sega | Master System, Mega Drive, 32X, Game Gear |
+| Sony | PS1, PS2 |
+
+Two of these need per-system settings rather than working out of the box —
+**GBA** and **Game Gear**, both for the same reason. See
+*GBA: why switchres picks 480i, and how to get 240p* below; Game Gear needs the
+same three keys under its own prefix, because 144 active lines cannot be fitted
+into a 15kHz progressive raster and switchres doubles them to 288 at a
+frequency the TV cannot lock:
+
+```ini
+gamegear.videomode=640x240.60.00
+gamegear.retroarch.crt_switch_resolution=0
+gamegear.ratio=full
+```
+
+---
+
 ## Settings
 
 ### `/userdata/system/batocera.conf`
