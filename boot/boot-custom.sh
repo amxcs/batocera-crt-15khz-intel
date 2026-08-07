@@ -53,10 +53,11 @@ fi
 # exact NTSC 15.734kHz, so switching between them moves nothing. They differ
 # only in how many pixels are sampled into that area:
 #
-#   720x454  ES menu. 454 of 525 lines active is the overscan trim - this TV
-#            hides 10 lines top and 10 bottom, and line pitch depends on Hfreq
-#            and vtotal only, so dropping active lines shortens the picture
-#            without touching the 59.94Hz field rate.
+#   640x454  ES menu. 454 of 480 active lines is the overscan trim - this TV
+#            hides 13 lines top and 13 bottom (the porches below carry that
+#            split), and line pitch depends on Hfreq and vtotal only, so
+#            dropping active lines shortens the picture without touching the
+#            59.94Hz field rate. Measure your own set with tools/calibrate.sh.
 #   720x480  full raster, for standalone emulators that stretch to the window.
 #   640x480  full raster and 4:3 in pixels, for standalone emulators that fit
 #            4:3 with square pixels (they pillarbox in a 1.5:1 window).

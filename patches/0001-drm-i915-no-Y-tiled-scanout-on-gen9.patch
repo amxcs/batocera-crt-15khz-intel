@@ -25,8 +25,9 @@ Note the alternative of forcing linear buffers with Option "AccelMethod"
 "none" in xorg.conf does work for interlace, but Batocera's Mesa has no
 swrast_dri.so, so EmulationStation loses GL and crash-loops.
 
-Tested on Intel HD Graphics 530 (Skylake, DISPLAY_VER 9) driving a
-consumer CRT TV over DisplayPort -> VGA -> SCART, kernel 6.18.16.
+Tested on Intel HD Graphics 530 (Skylake) and Intel UHD Graphics 630
+(Coffee Lake), both DISPLAY_VER 9, driving consumer CRT TVs over a VGA
+port -> SCART, kernel 6.18.16.
 --- a/drivers/gpu/drm/i915/display/intel_fb.c
 +++ b/drivers/gpu/drm/i915/display/intel_fb.c
 @@ -556,6 +556,23 @@

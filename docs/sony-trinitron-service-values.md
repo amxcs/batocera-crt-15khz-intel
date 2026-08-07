@@ -1,5 +1,16 @@
 # Sony Trinitron — service menu values (as found, before any change)
 
+> **These are one specific set's numbers, not settings to copy.** A television's
+> service menu is not a configuration file: the values are matched to that
+> chassis and its individual adjustment at the factory. Entering another set's
+> geometry can leave you with a picture you cannot get back without going
+> through every parameter, and on some chassis the same menu also reaches
+> high-voltage and convergence adjustments that are not geometry at all.
+>
+> Write down every value you are about to change, before you change it. Read
+> your own set's numbers, change only the four listed under *Notes*, and treat
+> everything here as an example of the shape of the answer.
+
 Transcribed from a photo of the service menu while the TV was fed the
 `720x480i` 15.68kHz RGB signal over SCART. **Verify against the set before
 relying on this** — it is read off a photograph, not dumped from the TV.
@@ -52,9 +63,19 @@ calibration, with the ruler pattern at `720x480`:
 | left | none |
 | right | none |
 
-That is exactly what the `720x454` ES modeline compensates for, and why the
-horizontal timing was left alone. Redo this measurement after any service-menu
-change: it is the input to the modeline, not the other way round.
+The horizontal timing was left alone because nothing was hidden there.
+
+**These numbers do not match the shipped modeline, and the modeline is the one
+to trust.** `640x454` trims 26 lines off the 480-line raster, and its porches
+(`454 470 476 525`) put 13 of them at the top and 13 at the bottom — not 10 and
+10. The table above is an older reading, taken before the calibration was redone
+against the 240p Test Suite; the 13/13 in the modeline came from the later
+measurement, which was never written down here.
+
+Do not copy either figure. Measure your own set — `tools/calibrate.sh` reads one
+number per edge off the ruler and derives the modeline from it — and redo the
+measurement after any service-menu change. The reading is the input to the
+modeline, not the other way round.
 
 Note also that **V-Zoom is not the parameter to use.** It is a coarser stage
 than V-Size, its steps are large, and changing it shifts the centre so V-Centre

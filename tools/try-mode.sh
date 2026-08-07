@@ -2,8 +2,11 @@
 # Try a modeline on the CRT without touching any of the permanent config.
 #
 #   try-mode.sh <clock> <hdisp> <hss> <hse> <htot> <vdisp> <vss> <vse> <vtot>
-#   try-mode.sh restore      - go back to the installed 720x454 mode
+#   try-mode.sh restore      - go back to the installed ES mode
 #   try-mode.sh show         - print the current mode's timings
+#
+# The connector and the mode to restore to are taken from the running system.
+# Override with CRT_OUTPUT=DP-1 and CRT_MODE=640x454 if the guess is wrong.
 #
 # Keep Hfreq at 15.734kHz and the field rate at 59.94Hz. Those are the exact
 # NTSC values, and they are the reason the TV locks instantly; drifting off
@@ -24,8 +27,17 @@
 # Note this only *tests*. A change of resolution (not just timing) needs
 # EmulationStation restarted before it renders into the new size.
 export DISPLAY="${DISPLAY:-:0.0}"
-OUT=DP-3
 NAME=test
+
+OUT="${CRT_OUTPUT:-$(xrandr --query 2>/dev/null | awk '/ connected/{print $1; exit}')}"
+[ -n "$OUT" ] || { echo "no connected output; set CRT_OUTPUT"; exit 1; }
+
+# What to go back to. Read it from the installed ES mode rather than assuming:
+# this used to say 720x454, which stopped being the shipped mode and left
+# 'restore' switching to something that does not exist.
+BASE="${CRT_MODE:-$(sed -n 's/^MODE="\([0-9]*x[0-9]*\)".*/\1/p' \
+      /userdata/system/custom-es-config 2>/dev/null | head -1)}"
+[ -n "$BASE" ] || BASE=640x454
 
 show() {
     xrandr --verbose --query | grep -A3 '\*current' | head -4
@@ -35,14 +47,14 @@ case "$1" in
 show)
     show; exit 0 ;;
 restore)
-    xrandr --output "$OUT" --mode 720x454 && echo "restored 720x454"
+    xrandr --output "$OUT" --mode "$BASE" && echo "restored $BASE"
     xrandr --delmode "$OUT" "$NAME" 2>/dev/null
     xrandr --rmmode "$NAME" 2>/dev/null
     show; exit 0 ;;
 esac
 
 if [ $# -lt 9 ]; then
-    sed -n '2,26p' "$0" | sed 's/^# \{0,1\}//'
+    sed -n '2,28p' "$0" | sed 's/^# \{0,1\}//'
     exit 1
 fi
 
@@ -55,7 +67,7 @@ awk "BEGIN{if ($HFREQ<15.4||$HFREQ>16.05) print \"  WARNING: Hfreq far from NTSC
 awk "BEGIN{if ($VFREQ<59.0||$VFREQ>60.5) print \"  WARNING: field rate far from 59.94\"}"
 
 # Switch away first: a mode cannot be deleted while it is in use.
-xrandr --output "$OUT" --mode 720x454 2>/dev/null
+xrandr --output "$OUT" --mode "$BASE" 2>/dev/null
 xrandr --delmode "$OUT" "$NAME" 2>/dev/null
 xrandr --rmmode "$NAME" 2>/dev/null
 
@@ -63,5 +75,5 @@ xrandr --newmode "$NAME" "$CLK" "$HD" "$HSS" "$HSE" "$HT" "$VD" "$VSS" "$VSE" "$
        -hsync -vsync interlace || exit 1
 xrandr --addmode "$OUT" "$NAME" || exit 1
 xrandr --output "$OUT" --mode "$NAME" || exit 1
-echo "applied - 'try-mode.sh restore' puts 720x454 back"
+echo "applied - 'try-mode.sh restore' puts $BASE back"
 show

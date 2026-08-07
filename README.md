@@ -637,11 +637,17 @@ it was a TV console, so switchres produces a clean `SR-1_1280x192@59.92` at
   the mode name on `x` and runs numeric tests on the halves; a name like
   `700x480_v2` throws `[: Illegal number` and the function bails out mid-way.
 
-- **`global.videomode` needs the refresh suffix.** `checkModeExists()` compares
-  against `batocera-resolution listModes` output, whose keys look like
-  `640x454.59.94`. A bare `640x454` fails validation and the mode is never set.
-  Read the exact key back from `listModes` after creating a mode rather than
-  assuming the rate string.
+- **`global.videomode` needs the refresh suffix**, and you may not be able to
+  look it up. `checkModeExists()` compares the value against
+  `batocera-resolution listModes` keys, which look like `640x454.59.94`; a bare
+  `640x454` fails. But on this build `listModes` returns only the two `max-*`
+  entries and never enumerates custom modelines at all, so no hand-made mode can
+  ever match and `changeMode()` logs `invalid video mode` instead of setting it.
+  That is survivable — `custom-es-config` has already put the output on the
+  right mode by then, and `minTomaxResolution()` is skipped for any
+  `global.videomode` other than `default` — but it means the key cannot be read
+  back from `listModes`. `tools/es-mode.sh` falls back to building it from the
+  rate `xrandr` reports.
 
 - **Batocera executes *everything* in `/userdata/system/scripts/`** as a
   gameStart/gameStop hook. A backup copy left there (`crt-mode.sh.bak-858`) ran

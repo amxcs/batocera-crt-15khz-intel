@@ -244,7 +244,9 @@ for f in /boot/EFI/batocera/syslinux.cfg /boot/boot/syslinux.cfg /boot/EFI/BOOT/
         continue
     fi
     backup "$f"
-    run "sed -i -e 's|^\\(\\s*APPEND .*\\)$|\\1 ${CMDLINE}|' -e 's|^\\(\\s*linux .*\\)$|\\1 ${CMDLINE}|' '$f'"
+    # [[:space:]] rather than \s: the latter is a GNU sed extension and this
+    # has to work wherever Batocera's sed came from.
+    run "sed -i -e 's|^\\([[:space:]]*APPEND .*\\)$|\\1 ${CMDLINE}|' -e 's|^\\([[:space:]]*linux .*\\)$|\\1 ${CMDLINE}|' '$f'"
     say "   added to $f"
 done
 
