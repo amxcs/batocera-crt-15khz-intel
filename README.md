@@ -35,7 +35,7 @@ most Intel desktop iGPUs from roughly 6th to 9th generation.
 | | |
 |---|---|
 | Batocera | 43.1, kernel 6.18.16, X11 + openbox |
-| Display | Sony Trinitron KV-29LS30E |
+| Display | Sony Trinitron — KV-29LS30E on A, a KV-21 on B |
 | Output | DisplayPort → VGA → SCART sync combiner → consumer CRT TV |
 | Cable | simple homemade VGA-to-SCART cable |
 | Connector | `DP-3` (no EDID) |
