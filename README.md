@@ -1,5 +1,8 @@
 # Batocera + 15kHz CRT on Intel gen9 graphics (real 480i)
 
+[![License: GPL v2](https://img.shields.io/badge/License-GPL%20v2-blue.svg)](LICENSE)
+[![Buy me a coffee](https://img.shields.io/badge/Buy%20me%20a%20coffee-ffdd00?logo=buymeacoffee&logoColor=black)](https://buymeacoffee.com/retro_gaming)
+
 Getting Batocera to drive a consumer CRT TV at **true 15kHz, including interlaced
 480i**, on **Intel** integrated graphics.
 
@@ -7,8 +10,8 @@ Every 15kHz/CRT guide out there assumes an AMD card. The community kernel patch
 set that Batocera already ships
 ([`D0023R/linux_kernel_15khz`](https://github.com/D0023R/linux_kernel_15khz))
 contains generic DRM fixes plus **AMD-only** display-engine fixes; Intel is not
-covered, and the one Intel bug report there has been open and unresolved since
-2020. This repo is the missing Intel piece.
+covered, and the one Intel bug report there has been open and unresolved for
+years. This repo is the missing Intel piece.
 
 Tested on:
 
@@ -502,3 +505,19 @@ SR-1_1280x480@60.00i  26.108MHz -HSync -VSync Interlace *current
   sync, not pixel count, so the pixel clock alone buys nothing, and matching the
   game frequency exactly costs the overscan trim, since a signal cannot be
   identical to the game's *and* be shorter.
+
+---
+
+## License
+
+Copyright (C) 2026 amxcs
+
+Licensed under the **GNU General Public License, version 2** — see [LICENSE](LICENSE).
+
+`patches/0001-drm-i915-no-Y-tiled-scanout-on-gen9.patch` modifies Linux kernel
+source and is a derivative work of it, so GPL-2.0 is not a preference here but a
+condition of the kernel's own licence. The scripts and documentation are released
+under the same terms for consistency.
+
+If this saved you a weekend, you can
+[buy me a coffee](https://buymeacoffee.com/retro_gaming).
