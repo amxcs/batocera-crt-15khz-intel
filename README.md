@@ -13,14 +13,41 @@ contains generic DRM fixes plus **AMD-only** display-engine fixes; Intel is not
 covered, and the one Intel bug report there has been open and unresolved for
 years. This repo is the missing Intel piece.
 
-Tested on:
+Tested on **two** machines, both 1-litre HP office mini-PCs — the kind that turns
+up second-hand for very little and fits behind the television:
+
+| | machine A | machine B |
+|---|---|---|
+| Model | HP ProDesk 400 **G2** Mini | HP ProDesk 400 **G5** Desktop Mini (SKU `6GE67AV`) |
+| CPU | Core i3-6100T (Skylake) | Core i3-8100T (Coffee Lake) |
+| GPU | Intel HD Graphics 530 | Intel UHD Graphics 630 (`8086:3e91`) |
+| `DISPLAY_VER` | 9 | 9 |
+| RAM | 16GB DDR4 | 16GB DDR4 |
+| Storage | 1TB NVMe + 1TB HDD | 1TB NVMe (Crucial P2) + 1TB HDD (HGST) |
+| Network | USB Wi-Fi | onboard Ethernet |
+| Bluetooth | USB dongle | USB dongle (CSR) |
+
+Both GPUs are `DISPLAY_VER` 9, which is the only thing the patch actually cares
+about — Skylake's HD 530 and Coffee Lake's UHD 630 are the same display
+generation, and the fix applies unchanged to both. That is a wide net: it covers
+most Intel desktop iGPUs from roughly 6th to 9th generation.
 
 | | |
 |---|---|
-| GPU | Intel HD Graphics 530 (Skylake, `DISPLAY_VER` 9) |
 | Batocera | 43.1, kernel 6.18.16, X11 + openbox |
+| Display | Sony Trinitron KV-29LS30E |
 | Output | DisplayPort → VGA → SCART sync combiner → consumer CRT TV |
+| Cable | simple homemade VGA-to-SCART cable |
 | Connector | `DP-3` (no EDID) |
+
+The point worth making: a used 1-litre office box with an integrated GPU and no
+extra hardware drives a 29" Trinitron at true 15kHz, interlaced modes included.
+No ancient graphics card, no CRT Emudriver, no AMD.
+
+<!-- Drop a photo of the machine next to the TV at docs/images/prodesk-mini.jpg
+     and uncomment the line below - it shows the size better than any spec table.
+![HP ProDesk 400 Mini next to the Trinitron](docs/images/prodesk-mini.jpg)
+-->
 
 ---
 
