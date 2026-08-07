@@ -6,6 +6,9 @@
 Getting Batocera to drive a consumer CRT TV at **true 15kHz, including interlaced
 480i**, on **Intel** integrated graphics.
 
+📺 **[Watch it working](https://www.youtube.com/watch?v=1lH606wSWck)** — install
+to calibrated picture, on the hardware described below.
+
 Every 15kHz/CRT guide out there assumes an AMD card. The community kernel patch
 set that Batocera already ships
 ([`D0023R/linux_kernel_15khz`](https://github.com/D0023R/linux_kernel_15khz))
