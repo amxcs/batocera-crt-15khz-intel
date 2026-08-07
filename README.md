@@ -38,7 +38,8 @@ most Intel desktop iGPUs from roughly 6th to 9th generation.
 | Display | Sony Trinitron — KV-29LS30E on A, a KV-21 on B |
 | Output | VGA → SCART sync combiner → consumer CRT TV |
 | Cable | simple homemade VGA-to-SCART cable |
-| Connector | `DP-3` (no EDID) — see below |
+| Port | 15-pin VGA (flex port) |
+| Connector | `DP-3` — the name the driver uses, no EDID; see below |
 
 The cable goes into the machine's **15-pin VGA port** — nothing is plugged into a
 DisplayPort socket. The driver still calls the output `DP-3`, because on these
