@@ -56,6 +56,25 @@ Worth knowing before you go hunting for a `VGA-1` that does not exist — and it
 is also why there is no EDID (`/sys/class/drm/card0-DP-3/edid` is 0 bytes), which
 is what lets arbitrary modelines through in the first place.
 
+**`DP-3` is this board's number, not a constant.** The same flex port comes out
+as `DP-1` or `DP-2` on other machines, and every script here takes the connector
+as an argument. Find yours before you start:
+
+```bash
+DISPLAY=:0 xrandr --query | awk '/ connected/{print $1; exit}'
+```
+
+Or, with no X server running:
+
+```bash
+for d in /sys/class/drm/card*-*/status; do
+    [ "$(cat "$d")" = connected ] && basename "$(dirname "$d")"
+done
+```
+
+`tools/install.sh` does this detection itself, so if you use it you never have to
+know the number.
+
 The point worth making: a used 1-litre office box with an integrated GPU and no
 extra hardware drives a 29" Trinitron at true 15kHz, interlaced modes included.
 No ancient graphics card, no CRT Emudriver, no AMD.
@@ -148,6 +167,43 @@ Build deps on Ubuntu: `flex bison libssl-dev libelf-dev dwarves`.
 
 ## Install
 
+### One command
+
+With the box on the network and the module already built (see *Build* above),
+everything else installs itself over SSH:
+
+```bash
+ssh root@batocera 'curl -fsSL https://raw.githubusercontent.com/amxcs/batocera-crt-15khz-intel/master/tools/install.sh | bash -s -- --yes --module https://your-host/i915-patched.ko'
+```
+
+Rehearse it first — `--dry-run` prints every write without making one, and still
+checks that your module matches the running kernel:
+
+```bash
+ssh root@batocera 'curl -fsSL https://raw.githubusercontent.com/amxcs/batocera-crt-15khz-intel/master/tools/install.sh | bash -s -- --dry-run --yes --module /userdata/i915-patched.ko'
+```
+
+`--module` takes a local path or a URL, and may be left out entirely: everything
+else still goes in and progressive 15kHz works, but 480i does not until you add
+the module and reboot.
+
+What it does: detects the connector, verifies the module's `vermagic` against the
+running kernel and **refuses to install a mismatched one** (that is the failure
+that leaves you with no display), installs the boot hook, the Xorg modelines, the
+ES mode script and the gameStop hook, sets the `batocera.conf` keys, and adds
+`video=<connector>:640x240eS` to all three bootloader configs. It is safe to
+re-run: every step checks before writing, `/boot` is returned to read-only even
+if the script dies, and originals are backed up to `/userdata/crt-install-backup/`
+the first time each file is touched.
+
+If it goes wrong, one line reverts the part that can stop the display coming up:
+
+```bash
+ssh root@batocera 'rm /boot/boot-custom.sh'
+```
+
+### By hand
+
 `/lib/modules` sits on a **tmpfs-backed overlay** and reverts on every boot, so
 the module cannot simply be copied in place. `/boot` is a real, persistent
 partition and Batocera runs `/boot/boot-custom.sh` from `S00bootcustom`,
@@ -177,6 +233,7 @@ chmod +x /userdata/system/custom-es-config /userdata/system/scripts/crt-mode.sh
 | `gen-overscan-ruler.py` | generate the labelled ruler used to measure overscan |
 | `gen-1px-frames.py` | finer 1px nested frames, once the ruler has got you close |
 | `show-test.sh` | display a still 1:1 on the CRT (mpv, nearest-neighbour, no dither) |
+| `install.sh` | do all of the above in one command; see *One command* |
 | `es-frame.sh` | ES `--screensize`/`--screenoffset`; **read its header first**, it does not do what it sounds like |
 
 Keep a copy of the stock module first — if it ever fails to load you get no
