@@ -334,8 +334,8 @@ Tested on this setup and landing in the frame correctly:
 
 | | |
 |---|---|
-| Nintendo | NES, SNES, N64, GBA |
-| Sega | Master System, Mega Drive, 32X, Game Gear |
+| Nintendo | NES, SNES, N64, GameCube, GBA |
+| Sega | Master System, Mega Drive, 32X, Saturn, Dreamcast, Game Gear |
 | Sony | PS1, PS2 |
 
 Two of these do not work out of the box — **GBA** and **Game Gear**. Both are
