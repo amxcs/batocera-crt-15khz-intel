@@ -330,19 +330,21 @@ approach that does not work.
 
 ### Confirmed working
 
-Tested on this setup and landing in the frame correctly:
+Tested on this setup and landing in the frame correctly. These are the machines
+that were designed to drive a television in the first place, which is what this
+whole setup is for:
 
 | | |
 |---|---|
-| Nintendo | NES, SNES, N64, GameCube, GBA |
-| Sega | Master System, Mega Drive, 32X, Saturn, Dreamcast, Game Gear |
+| Nintendo | NES, SNES, N64, GameCube |
+| Sega | Master System, Mega Drive, 32X, Saturn, Dreamcast |
 | Sony | PS1, PS2 |
 
-Two of these do not work out of the box — **GBA** and **Game Gear**. Both are
-handhelds built around an LCD panel, with no TV output and no line count that
-fits a 15kHz raster, so both need a deliberate compromise rather than a setting
-that simply makes them correct. See *The two handhelds are a compromise, not a
-fit* below.
+**Handhelds are a separate case.** GBA and Game Gear run, and run well, but
+their games were drawn for a small LCD and never had a scanline in mind, so
+getting them onto a tube costs a compromise rather than a setting. Both are
+covered in *The two handhelds are a compromise, not a fit* below — treat that
+section as optional reading unless you actually want them.
 
 **On Dreamcast, pick 60Hz when a PAL game asks.** European releases often open
 with a 50/60Hz selector, and the choice reaches all the way to the modeline —
@@ -562,13 +564,17 @@ at the same time, for the same reason.
 
 ### The two handhelds are a compromise, not a fit
 
-GBA and Game Gear are the only systems here that need per-system settings, and
-for the same underlying reason: **they were never meant to reach a CRT.** Every
-other console on the list was designed to drive an NTSC television, so its frame
-already fits a 15kHz raster — 224 or 240 active lines inside a 262-line frame.
-These two were built around a small LCD panel and have no TV output at all. GBA
-is 240x**160**, Game Gear 160x**144**. Nobody ever had to make those numbers land
-on a scanline.
+Plenty of systems here need per-system settings — N64, GameCube, Wii and PS2 all
+have their own entries above. But those are all **standalone** emulators, which
+need a `videomode` simply because they inherit the current mode instead of
+choosing one. GBA and Game Gear are different: they are the only **libretro**
+systems that need help, and switchres normally does that job perfectly well.
+
+The reason is that **they were never meant to reach a CRT.** Every television
+console on the list was designed to drive an NTSC set, so its frame already fits
+a 15kHz raster — 224 or 240 active lines inside a 262-line frame. These two were
+built around a small LCD panel and have no TV output at all. GBA is 240x**160**,
+Game Gear 160x**144**. Nobody ever had to make those numbers land on a scanline.
 
 The result is that neither has a usable integer vertical scale. 1× leaves the
 picture floating in the middle of the tube; 2× does not fit in a progressive
