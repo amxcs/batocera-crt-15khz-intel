@@ -136,7 +136,10 @@ if [ -n "$MODULE" ]; then
         http://*|https://*)
             MODULE_LOCAL=/tmp/i915-patched.ko
             say "   downloading $MODULE"
-            if ! run "curl -fsSL '$MODULE' -o '$MODULE_LOCAL'"; then
+            # Downloaded even in dry-run: it only writes to /tmp, and without
+            # the file there is nothing to check the vermagic of -- which is
+            # the one question a rehearsal is for.
+            if ! curl -fsSL "$MODULE" -o "$MODULE_LOCAL"; then
                 # A module the user named is a hard requirement; one this script
                 # chose is a convenience, so its absence must not stop the rest.
                 [ "$MODULE_AUTO" = 1 ] || die "download failed: $MODULE"
