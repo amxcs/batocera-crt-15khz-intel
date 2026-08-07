@@ -185,6 +185,15 @@ That is the whole installation. With no `--module` it fetches the prebuilt
 `i915-patched-6.18.16.ko` from this repo's releases, checks its `vermagic`
 against the running kernel, and refuses it if they differ. Then reboot.
 
+Then calibrate, once, in front of the television:
+
+```bash
+ssh -t root@batocera /userdata/system/crt-tools/calibrate.sh
+```
+
+Those two commands are the entire process, and they have been run exactly as
+written on a freshly flashed 43.1 stick.
+
 Rehearse first if you prefer — `--dry-run` prints every write without making
 one, and still performs the module check:
 
