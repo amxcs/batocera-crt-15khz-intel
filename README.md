@@ -1,7 +1,7 @@
 # Batocera + 15kHz CRT on Intel gen9 graphics (real 480i)
 
 [![License: GPL v2](https://img.shields.io/badge/License-GPL%20v2-blue.svg)](LICENSE)
-[![Buy me a coffee](https://img.shields.io/badge/Buy%20me%20a%20coffee-ffdd00?logo=buymeacoffee&logoColor=black)](https://buymeacoffee.com/retro_gaming)
+[![Ko-fi](https://img.shields.io/badge/Ko--fi-amxcs-ff5e5b?logo=kofi&logoColor=white)](https://ko-fi.com/amxcs)
 
 Getting Batocera to drive a consumer CRT TV at **true 15kHz, including interlaced
 480i**, on **Intel** integrated graphics.
@@ -835,4 +835,4 @@ condition of the kernel's own licence. The scripts and documentation are release
 under the same terms for consistency.
 
 If this saved you a weekend, you can
-[buy me a coffee](https://buymeacoffee.com/retro_gaming).
+[buy me a coffee](https://ko-fi.com/amxcs).
