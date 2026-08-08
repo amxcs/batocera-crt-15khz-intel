@@ -814,6 +814,22 @@ SR-1_1280x480@60.00i  26.108MHz -HSync -VSync Interlace *current
 
 ---
 
+## How this was built
+
+Worth stating plainly, because people ask.
+
+The hardware, the measurements and the testing are mine: two machines, two
+Trinitrons, a ruler pattern and a lot of hours in front of the tube. So is the
+observation that started it — 15kHz already worked on the same box under Lubuntu
+with RetroArch, and not under Batocera, so the difference had to be findable by
+comparing the two rather than by believing it was impossible.
+
+The code archaeology, the patch, the scripts and this document were written with
+**Claude Opus 5**, working from that comparison and from what the measurements
+showed. Every claim here that sounds like a fact — a modeline, a frequency, a
+line count, which setting changes what — was measured on the machines described
+above, not assumed. Where something is inferred rather than measured, it says so.
+
 ## License
 
 Copyright (C) 2026 amxcs
