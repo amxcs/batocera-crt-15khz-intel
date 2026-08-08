@@ -1,5 +1,5 @@
 From: Batocera 15kHz CRT on Intel gen9
-Subject: [PATCH] drm/i915: don't advertise Y/Yf tiled scanout on gen9
+Subject: [PATCH] drm/i915: optional LINEAR/X_TILED-only scanout on gen9 for interlace
 
 The display engine refuses Y/Yf tiled scanout while a pipe runs in IF-ID
 interlace mode -- see the "Y/Yf tiling not supported in IF-ID mode" check in
@@ -17,35 +17,83 @@ This makes real 480i impossible on a 15kHz CRT even though the hardware
 supports interlace on this generation (intel_dp.c already sets
 interlace_allowed for DISPLAY_VER < 12).
 
-Only advertise LINEAR/X_TILED on gen9 so that the scanout buffer is
-interlace capable from the moment it is allocated. X tiling is a first
-class scanout format here, so glamor acceleration keeps working.
+Because the modifier is chosen before the driver can know whether the buffer
+will ever be scanned out interlaced, there is no way to decide this per-mode:
+by the time an interlaced mode is requested the allocation has already
+happened. The only thing the driver can do is not offer the modifiers that
+interlace cannot use.
 
-Note the alternative of forcing linear buffers with Option "AccelMethod"
-"none" in xorg.conf does work for interlace, but Batocera's Mesa has no
-swrast_dri.so, so EmulationStation loses GL and crash-loops.
+Doing that unconditionally would cost every gen9 user Y tiling and render
+compression for a feature almost none of them want, so it is placed behind a
+module parameter, off by default:
+
+    i915.no_ytiled_scanout=1
+
+With it set, gen9 advertises only LINEAR and X_TILED for scanout, so the
+buffer is interlace capable from the moment it is allocated. X tiling is a
+first class scanout format here, so glamor acceleration keeps working --
+unlike Option "AccelMethod" "none", which produces linear buffers but has no
+swrast fallback on a Mesa build without swrast_dri.so.
+
+The parameter has no effect on any other display generation.
 
 Tested on Intel HD Graphics 530 (Skylake) and Intel UHD Graphics 630
 (Coffee Lake), both DISPLAY_VER 9, driving consumer CRT TVs over a VGA
 port -> SCART, kernel 6.18.16.
+---
+ drivers/gpu/drm/i915/display/intel_display_params.c |  7 +++++++
+ drivers/gpu/drm/i915/display/intel_display_params.h |  1 +
+ drivers/gpu/drm/i915/display/intel_fb.c             | 21 +++++++++++++++++++++
+ 3 files changed, 29 insertions(+)
+
+--- a/drivers/gpu/drm/i915/display/intel_display_params.h
++++ b/drivers/gpu/drm/i915/display/intel_display_params.h
+@@ -50,6 +50,7 @@
+ 	param(bool, psr_safest_params, false, 0400) \
+ 	param(bool, enable_psr2_sel_fetch, true, 0400) \
+ 	param(int, enable_dmc_wl, -1, 0400) \
++	param(bool, no_ytiled_scanout, false, 0400) \
+ 
+ #define MEMBER(T, member, ...) T member;
+ struct intel_display_params {
+--- a/drivers/gpu/drm/i915/display/intel_display_params.c
++++ b/drivers/gpu/drm/i915/display/intel_display_params.c
+@@ -139,6 +139,13 @@
+ 	"(-1=use per-chip default, 0=disabled, 1=enabled, 2=match any register, 3=always locked) "
+ 	"Default: -1");
+ 
++intel_display_param_named_unsafe(no_ytiled_scanout, bool, 0400,
++	"Advertise only LINEAR/X_TILED scanout modifiers on DISPLAY_VER 9. "
++	"Y/Yf tiled scanout is rejected in IF-ID interlace mode, and the "
++	"modifier is chosen at buffer allocation time, so this is what makes "
++	"interlaced (480i) modes usable on gen9. No effect on other platforms. "
++	"Default: false");
++
+ __maybe_unused
+ static void _param_print_bool(struct drm_printer *p, const char *driver_name,
+ 			      const char *name, bool val)
 --- a/drivers/gpu/drm/i915/display/intel_fb.c
 +++ b/drivers/gpu/drm/i915/display/intel_fb.c
-@@ -556,6 +556,23 @@
+@@ -556,6 +556,27 @@
  		return false;
  
  	/*
-+	 * batocera-15khz: the display engine rejects Y/Yf tiled scanout (and the
-+	 * CCS variants, which are Y based) in IF-ID interlace mode, see the
-+	 * "Y/Yf tiling not supported in IF-ID mode" check in skl_plane_check().
-+	 * Userspace picks a modifier at buffer allocation time, long before any
-+	 * interlaced mode is set, and gen9 Mesa/glamor prefers Y tiling, which
-+	 * then makes every interlaced modeset fail with -EINVAL. Only advertise
-+	 * LINEAR/X_TILED on gen9 so the scanout buffer is interlace capable from
-+	 * the start; X tiling is a first class scanout format here, so glamor
-+	 * acceleration keeps working (unlike AccelMethod "none", which has no
-+	 * swrast fallback on this build and breaks EmulationStation).
++	 * The display engine rejects Y/Yf tiled scanout (and the CCS variants,
++	 * which are Y based) in IF-ID interlace mode, see the "Y/Yf tiling not
++	 * supported in IF-ID mode" check in skl_plane_check(). Userspace picks
++	 * a modifier when it allocates the buffer, long before any interlaced
++	 * mode is set, and gen9 Mesa/glamor prefers Y tiling -- so an
++	 * interlaced modeset then fails the atomic check with -EINVAL and there
++	 * is nothing left to fall back to.
++	 *
++	 * Advertising only LINEAR/X_TILED makes the scanout buffer interlace
++	 * capable from the start. It also costs Y tiling and render compression
++	 * for everything else on this platform, which is why it is opt-in
++	 * rather than the default: it is only worth it if the machine actually
++	 * drives an interlaced display, such as a 15kHz CRT.
 +	 */
-+	if (DISPLAY_VER(display) == 9 &&
++	if (display->params.no_ytiled_scanout &&
++	    DISPLAY_VER(display) == 9 &&
 +	    md->modifier != DRM_FORMAT_MOD_LINEAR &&
 +	    md->modifier != I915_FORMAT_MOD_X_TILED)
 +		return false;

@@ -166,6 +166,32 @@ make -j"$(nproc)" modules      # only i915.ko is needed
 `vermagic` must match the running kernel exactly or the module refuses to load.
 Build deps on Ubuntu: `flex bison libssl-dev libelf-dev dwarves`.
 
+### The patch is opt-in, so it needs a kernel parameter
+
+The patch does **not** change anything by default. It adds a module parameter,
+and the restriction only applies when that is set:
+
+```
+i915.no_ytiled_scanout=1
+```
+
+Put it on the kernel command line next to `video=<connector>:640x240eS`.
+
+It works this way because the modifier is chosen when userspace *allocates* the
+buffer, long before a mode is set — so the driver cannot know whether that
+buffer will ever be scanned out interlaced, and cannot decide per-mode. All it
+can do is stop offering the modifiers interlace cannot use. Doing that
+unconditionally would cost every gen9 machine Y tiling and render compression
+for a feature almost none of them want, which is not a reasonable default. With
+the parameter, a machine that drives a 15kHz CRT opts in and everyone else is
+unaffected.
+
+> **Note:** the module published under [releases](../../releases) was built from
+> an earlier revision of this patch, which applied the restriction
+> unconditionally and therefore needs no parameter. It works, and the installer
+> still uses it. The parameter above applies to anything built from the patch as
+> it stands now.
+
 ---
 
 ## Install
