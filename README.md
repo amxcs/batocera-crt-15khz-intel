@@ -816,8 +816,6 @@ SR-1_1280x480@60.00i  26.108MHz -HSync -VSync Interlace *current
 
 ## How this was built
 
-Worth stating plainly, because people ask.
-
 The hardware, the measurements and the testing are mine: two machines, two
 Trinitrons, a lot of hours in front of the tube. So is the observation that
 started it — 15kHz already worked on the same box under Lubuntu with RetroArch,
